@@ -41,6 +41,7 @@ export interface LlamaParser extends Parser {
   submit(file: Uint8Array, opts: { tier?: string; filename: string }): Promise<string>;
   fetchResult(jobId: string): Promise<ParsedDocument | 'pending'>;
   fetchWithRaw(jobId: string): Promise<LlamaFetched | 'pending'>;
+  parseWithRaw(file: Uint8Array, opts: { tier?: string; filename: string }): Promise<LlamaFetched>;
 }
 
 // ---- response shapes (only the fields used)
@@ -49,7 +50,7 @@ interface LlamaWord { span: [number, number]; bbox: LlamaBox }
 interface LlamaLine { span: [number, number]; bbox: LlamaBox; words?: LlamaWord[] | null }
 interface LlamaCell { span?: [number, number]; bbox?: LlamaBox[] | LlamaBox; lines?: LlamaLine[] | null }
 interface LlamaGrounding { source?: string; lines?: LlamaLine[]; rows?: (LlamaCell | null)[][] }
-export interface LlamaItem { type?: string; md?: string; value?: string; grounding?: LlamaGrounding | null }
+export interface LlamaItem { type?: string; md?: string; value?: string; rows?: string[][]; grounding?: LlamaGrounding | null }
 export interface LlamaPage {
   page_number: number;
   page_width?: number;
@@ -179,6 +180,18 @@ export function createLlamaParseParser(cfg: LlamaParseConfig): LlamaParser {
     };
   }
 
+  /** Submits, then polls until the job is done. Returns the raw sidecar with the mapped document. */
+  async function parseWithRaw(file: Uint8Array, opts: { tier?: string; filename: string }): Promise<LlamaFetched> {
+    const jobId = await submit(file, opts);
+    const deadline = Date.now() + (cfg.timeoutMs ?? 10 * 60_000);
+    for (;;) {
+      const result = await fetchWithRaw(jobId);
+      if (result !== 'pending') return result;
+      if (Date.now() > deadline) throw new ParserError('failed', `LlamaParse job ${jobId} still running after ${(cfg.timeoutMs ?? 600_000) / 1000}s`);
+      await new Promise((r) => setTimeout(r, cfg.pollIntervalMs ?? 3000));
+    }
+  }
+
   async function fetchResult(jobId: string): Promise<ParsedDocument | 'pending'> {
     const r = await fetchWithRaw(jobId);
     return r === 'pending' ? r : r.document;
@@ -188,16 +201,22 @@ export function createLlamaParseParser(cfg: LlamaParseConfig): LlamaParser {
     submit,
     fetchResult,
     fetchWithRaw,
+    parseWithRaw,
     async parse(file, opts) {
-      const jobId = await submit(file, opts);
-      const deadline = Date.now() + (cfg.timeoutMs ?? 10 * 60_000);
-      for (;;) {
-        const result = await fetchResult(jobId);
-        if (result !== 'pending') return result;
-        if (Date.now() > deadline) throw new ParserError('failed', `LlamaParse job ${jobId} still running after ${(cfg.timeoutMs ?? 600_000) / 1000}s`);
-        await new Promise((r) => setTimeout(r, cfg.pollIntervalMs ?? 3000));
-      }
+      return (await parseWithRaw(file, opts)).document;
     },
+  };
+}
+
+/** A saved raw sidecar (JSONL text) mapped again: how a stored parse is re-read after the mapping changes, at no cost. */
+export function documentFromSidecar(jsonl: string, tier?: string): ParsedDocument {
+  const pages = mapLlamaPages(parseJsonl(jsonl));
+  return {
+    parser: 'llamaparse',
+    ...(tier ? { tier } : {}),
+    pageCount: pages.length,
+    pages,
+    creditsEstimate: tier && CREDITS_PER_PAGE[tier] ? pages.length * CREDITS_PER_PAGE[tier] : undefined,
   };
 }
 
@@ -211,17 +230,64 @@ export function parseJsonl(text: string): LlamaPage[] {
 /** r is kept exactly as LlamaParse gives it. Never add the page's own rotation to it: page_width/page_height already include /Rotate. */
 const toBox = (b: LlamaBox): Box => (b.r ? { x: b.x, y: b.y, w: b.w, h: b.h, r: b.r } : { x: b.x, y: b.y, w: b.w, h: b.h });
 
+/**
+ * Where each cell's text sits in a markdown table's md: cells[row][col] = { start, text }. Rows are the md's
+ * lines apart from the |---| rule, so row 0 is the header. `plain` is the sidecar's own cell text (item.rows),
+ * used to find the text inside markup such as **bold**; a cell whose text can't be found is left out.
+ */
+export function tableCells(md: string, plain?: string[][]): ({ start: number; text: string } | undefined)[][] {
+  const out: ({ start: number; text: string } | undefined)[][] = [];
+  let lineStart = 0;
+  for (const line of md.split('\n')) {
+    const at = lineStart;
+    lineStart += line.length + 1;
+    if (!line.includes('|') || /^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)*\|?\s*$/.test(line)) continue;
+    const r = out.length;
+    // Cell segments: between unescaped pipes.
+    const bars = [...line.matchAll(/(?<!\\)\|/g)].map((m) => m.index);
+    const cells: ({ start: number; text: string } | undefined)[] = [];
+    for (let i = 0; i + 1 < bars.length; i++) {
+      const seg = line.slice(bars[i]! + 1, bars[i + 1]);
+      const want = plain?.[r]?.[i];
+      const idx = want === undefined ? seg.length - seg.trimStart().length : seg.indexOf(want);
+      const text = want === undefined ? seg.trim() : want;
+      cells.push(idx >= 0 && text ? { start: at + bars[i]! + 1 + idx, text } : undefined);
+    }
+    out.push(cells);
+  }
+  return out;
+}
+
 /** Numbers the visual lines of one page, in the order the parser lists them. */
 interface LineCounter { n: number }
 
+/**
+ * Span offsets in the sidecar count UTF-8 bytes, not characters (seen on a live parse: "·" is span [2,4]).
+ * Returns a function from a byte offset in `text` to the matching index in the JS string. Text with only
+ * one-byte characters needs no conversion.
+ */
+function byteToIndex(text: string): (byte: number) => number {
+  if (![...text].some((c) => c.charCodeAt(0) > 127)) return (b) => b;
+  const at: number[] = [0];
+  let index = 0;
+  for (const ch of text) {
+    const cp = ch.codePointAt(0)!;
+    const bytes = cp < 0x80 ? 1 : cp < 0x800 ? 2 : cp < 0x10000 ? 3 : 4;
+    for (let k = 1; k <= bytes; k++) at.push(k === bytes ? index + ch.length : index); // a byte inside a character maps to its start
+    index += ch.length;
+  }
+  return (b) => at[Math.min(Math.max(b, 0), at.length - 1)]!;
+}
+
 /** Words of a span of `md` with no word boxes of its own: each word gets its share of the span's box. */
-function spreadWords(md: string, span: [number, number], box: LlamaBox, offset: number, line: number): Word[] {
-  const text = md.slice(span[0], span[1]);
+function spreadWords(md: string, span: [number, number], box: LlamaBox, offset: number, line: number, conv = byteToIndex(md)): Word[] {
+  const from = conv(span[0]);
+  const text = md.slice(from, conv(span[1]));
   const perChar = text.length ? box.w / text.length : 0;
   return [...text.matchAll(/\S+/g)].map((m) => ({
     text: m[0],
-    start: offset + span[0] + m.index,
-    end: offset + span[0] + m.index + m[0].length,
+    start: offset + from + m.index,
+    end: offset + from + m.index + m[0].length,
     box: toBox({ x: box.x + perChar * m.index, y: box.y, w: perChar * m[0].length, h: box.h, r: box.r }),
     line,
   }));
@@ -229,14 +295,17 @@ function spreadWords(md: string, span: [number, number], box: LlamaBox, offset: 
 
 function lineWords(md: string, lines: LlamaLine[], offset: number, counter: LineCounter): Word[] {
   const words: Word[] = [];
+  const conv = byteToIndex(md);
   for (const line of lines) {
     const no = counter.n++;
     if (line.words?.length) {
       for (const w of line.words) {
-        words.push({ text: md.slice(w.span[0], w.span[1]), start: offset + w.span[0], end: offset + w.span[1], box: toBox(w.bbox), line: no });
+        const start = conv(w.span[0]);
+        const end = conv(w.span[1]);
+        words.push({ text: md.slice(start, end), start: offset + start, end: offset + end, box: toBox(w.bbox), line: no });
       }
     } else if (line.span && line.bbox) {
-      words.push(...spreadWords(md, line.span, line.bbox, offset, no));
+      words.push(...spreadWords(md, line.span, line.bbox, offset, no, conv));
     }
   }
   return words;
@@ -271,29 +340,50 @@ export function mapLlamaPages(pages: LlamaPage[]): ParsedPage[] {
       };
     }
     if (!p.page_width || !p.page_height) throw new ParserError('bad_response', `LlamaParse page ${p.page_number} has no page_width/page_height`);
+    const counter: LineCounter = { n: 0 };
+    // Each item's words, with offsets into its own md.
+    const built = (p.items ?? [])
+      .filter((item) => item.md)
+      .map((item) => {
+        const md = item.md!;
+        const g = item.grounding;
+        const own: Word[] = [];
+        if (g?.lines) own.push(...lineWords(md, g.lines, 0, counter));
+        // Table cells: a cell's word spans count from the start of the cell's own text, not of the table's md.
+        const cells = g?.rows?.length ? tableCells(md, item.rows) : [];
+        (g?.rows ?? []).forEach((row, r) => {
+          row.forEach((cell, c) => {
+            const at = cells[r]?.[c];
+            if (!cell || !at) return; // a cell that can't be placed in the md gets no boxes rather than wrong ones
+            if (cell.lines?.length) own.push(...lineWords(at.text, cell.lines, at.start, counter));
+            else if (cell.span && cell.bbox) {
+              const box = Array.isArray(cell.bbox) ? cell.bbox[0] : cell.bbox;
+              if (box) own.push(...spreadWords(at.text, cell.span, box, at.start, counter.n++));
+            }
+          });
+        });
+        return { md, own };
+      });
+    // Seen on a live /Rotate 90 page: LlamaParse listed some words twice, as separate items at the same place. A
+    // repeated item would make every quote from it look like it appears twice, so an item whose words are all
+    // the same words at the same places as another item's is dropped (the later of two equal items).
+    const wordKey = (w: Word) => `${w.text}|${Math.round(w.box.x * 2)}|${Math.round(w.box.y * 2)}|${Math.round(w.box.w * 2)}|${Math.round(w.box.h * 2)}`;
+    const keys = built.map((b) => new Set(b.own.map(wordKey)));
+    const redundant = built.map((b, i) => {
+      if (!b.own.length) return false;
+      // Covered by another item that is bigger, or equal and earlier (so of two equal items the first is kept).
+      return keys.some((other, j) => j !== i && [...keys[i]!].every((k) => other.has(k)) && (other.size > keys[i]!.size || j < i));
+    });
+
     let text = '';
     const words: Word[] = [];
-    const counter: LineCounter = { n: 0 };
-    for (const item of p.items ?? []) {
-      const md = item.md ?? '';
-      if (!md) continue;
+    built.forEach((b, i) => {
+      if (redundant[i]) return;
       if (text) text += '\n\n';
       const offset = text.length;
-      text += md;
-      const g = item.grounding;
-      if (!g) continue;
-      if (g.lines) words.push(...lineWords(md, g.lines, offset, counter));
-      for (const row of g.rows ?? []) {
-        for (const cell of row) {
-          if (!cell) continue;
-          if (cell.lines?.length) words.push(...lineWords(md, cell.lines, offset, counter));
-          else if (cell.span && cell.bbox) {
-            const box = Array.isArray(cell.bbox) ? cell.bbox[0] : cell.bbox;
-            if (box) words.push(...spreadWords(md, cell.span, box, offset, counter.n++));
-          }
-        }
-      }
-    }
+      text += b.md;
+      words.push(...b.own.map((w) => ({ ...w, start: w.start + offset, end: w.end + offset })));
+    });
     if (text.trim() && !words.length) {
       throw new ParserError('bad_response', `LlamaParse returned no word boxes for page ${p.page_number} (granular_bboxes missing?)`);
     }

@@ -1,18 +1,52 @@
-// The quote check: find an extracted quote on the page it was cited from, and return the boxes of the
-// words it covers. A quote that isn't found on its page is "not verified" — never searched for elsewhere.
+// The quote check: find an extracted quote on the page it was cited from (or, failing that, elsewhere in the
+// document) and return the boxes of the words it covers. A quote that can't be found, or that matches in
+// more than one place, is flagged for review and never guessed at.
+//
+// Dependency-free (types and page fractions only), so edge functions and Node scripts import the same code.
 
+import { toFraction, type FractionBox } from './positions.ts';
 import type { Box, ParsedPage } from './types.ts';
 
+/** The part of a quote that sits on a following page, when the quote runs across a page break. */
+export interface GroundingPart {
+  page: number;
+  /** Offsets into that page's text. */
+  start: number;
+  end: number;
+  boxes: Box[];
+  fractions: FractionBox[];
+}
+
 export interface GroundingResult {
-  status: 'grounded' | 'not_found';
-  /** 1 = exact, 0.99 = exact but the text occurs more than once (first taken), below that = fuzzy. */
+  /** ambiguous: the quote matches in more than one place, so none is taken. */
+  status: 'grounded' | 'ambiguous' | 'not_found';
+  /** 1 = exact, 0.99 = exact but the text occurs more than once (single-page ground() only), below that = fuzzy. */
   score: number;
+  /** The page the quote was found on (its first page, if it crosses a page break). */
   page: number;
   /** Offsets into page.text. */
   start?: number;
   end?: number;
-  /** One box per visual line. */
+  /** One box per visual line, in the page's own units (PDF points). */
   boxes: Box[];
+  /** The same boxes as fractions of the page (0–1): what a viewer draws. Present when grounded. */
+  fractions?: FractionBox[];
+  /** How it was found: as written (after normalising), or by fuzzy alignment. */
+  match?: 'exact' | 'fuzzy';
+  /** Set when the quote was found on a different page from the one claimed. */
+  claimedPage?: number;
+  /** The rest of the quote on the next page, when it runs across a page break. */
+  more?: GroundingPart[];
+  /** For ambiguous: the pages it matched on. */
+  pages?: number[];
+  /** Why, when not grounded and the reason isn't just "not there". */
+  note?: string;
+}
+
+export interface GroundOptions {
+  /** Stray words a watermark or stamp drops into the text ("SAMPLE", "COPY"). A page word on this list is skipped
+   *  when matching, unless the quote itself contains that word. */
+  ignoreTokens?: string[];
 }
 
 /** Normalised text, with the page.text range each normalised character came from. */
@@ -162,6 +196,7 @@ function fuzzyFind(q: Token[], t: Token[]): { score: number; first: number; last
   const cache = new Map<string, number>();
   const sub = (a: string, b: string) => {
     if (a === b) return 0;
+    if (/\d/.test(a) || /\d/.test(b)) return 1; // a changed number is never a small slip
     const key = a + '\u0000' + b;
     let v = cache.get(key);
     if (v === undefined) {
@@ -206,8 +241,12 @@ function fuzzyFind(q: Token[], t: Token[]): { score: number; first: number; last
   return best;
 }
 
-/** Merge word boxes into one box per visual line: same line when centres are within half a line-height. */
+/**
+ * Merge word boxes into one box per visual line: same line when centres are within half a line-height.
+ * Rotated words (a box with r) are not merged: a rectangle round several rotated words would not follow them.
+ */
 export function lineBoxes(boxes: Box[]): Box[] {
+  if (boxes.some((b) => b.r)) return [...boxes].sort((a, c) => a.y + a.h / 2 - (c.y + c.h / 2) || a.x - c.x);
   const lines: Box[][] = [];
   for (const b of [...boxes].sort((a, c) => a.y + a.h / 2 - (c.y + c.h / 2) || a.x - c.x)) {
     const line = lines[lines.length - 1];
@@ -224,31 +263,174 @@ export function lineBoxes(boxes: Box[]): Box[] {
 
 const round3 = (n: number) => Math.round(n * 1000) / 1000;
 
-export function ground(quote: string, page: ParsedPage, minScore: number): GroundingResult {
+/** A place a quote matched, as offsets into the normalised page text. */
+interface Hit {
+  normStart: number;
+  normEnd: number;
+  score: number;
+  exact: boolean;
+}
+
+const stripPunct = (s: string) => s.replace(/[^\p{L}\p{N}]/gu, '');
+
+/**
+ * Every exact occurrence of the normalised quote in the normalised page; failing that, the one best fuzzy
+ * alignment at or above minScore. `best` is the best score seen, for reporting a near miss.
+ */
+function locate(q: string, p: Normalised, minScore: number, ignore: Set<string>): { hits: Hit[]; best: number } {
+  const hits: Hit[] = [];
+  for (let at = p.text.indexOf(q); at >= 0; at = p.text.indexOf(q, at + 1)) hits.push({ normStart: at, normEnd: at + q.length, score: 1, exact: true });
+  if (hits.length) return { hits, best: 1 };
+
+  const qTokens = tokenise(q);
+  let pageTokens = tokenise(p.text);
+  if (ignore.size) {
+    // Skip a stray watermark word on the page, unless the quote itself has that word.
+    const inQuote = new Set(qTokens.map((t) => stripPunct(t.text)));
+    pageTokens = pageTokens.filter((t) => {
+      const w = stripPunct(t.text);
+      return !(ignore.has(w) && !inQuote.has(w));
+    });
+  }
+  const found = fuzzyFind(qTokens, pageTokens);
+  if (!found || found.score < minScore) return { hits: [], best: found?.score ?? 0 };
+  return { hits: [{ normStart: pageTokens[found.first]!.start, normEnd: pageTokens[found.last]!.end, score: found.score, exact: false }], best: found.score };
+}
+
+const normalisedIgnore = (o?: GroundOptions) => new Set((o?.ignoreTokens ?? []).map((t) => stripPunct(t.toLowerCase())).filter(Boolean));
+
+/** One page's words that fall in [start, end) of its text, as line boxes. */
+function boxesFor(page: ParsedPage, start: number, end: number): Box[] {
+  return lineBoxes(page.words.filter((w) => w.start < end && w.end > start).map((w) => w.box));
+}
+
+function groundedOn(page: ParsedPage, p: Normalised, hit: Hit, count: number): GroundingResult {
+  const start = p.from[hit.normStart]!;
+  const end = p.to[hit.normEnd - 1]!;
+  const boxes = boxesFor(page, start, end);
+  return {
+    status: 'grounded',
+    score: round3(hit.exact && count > 1 ? 0.99 : hit.score),
+    page: page.page,
+    start,
+    end,
+    boxes,
+    fractions: boxes.map((b) => toFraction(b, page)),
+    match: hit.exact ? 'exact' : 'fuzzy',
+  };
+}
+
+/**
+ * Finds a quote on one page. The first place it matches is taken; the score is 0.99 when an exact quote
+ * occurs more than once. Use groundInDocument to look further and to refuse a repeated quote.
+ */
+export function ground(quote: string, page: ParsedPage, minScore: number, options?: GroundOptions): GroundingResult {
   const notFound = (score = 0): GroundingResult => ({ status: 'not_found', score: round3(score), page: page.page, boxes: [] });
   const q = normalise(quote).text;
   if (!q.trim()) return notFound();
   const p = normalise(page.text);
+  const { hits, best } = locate(q, p, minScore, normalisedIgnore(options));
+  if (!hits.length) return notFound(best);
+  return groundedOn(page, p, hits[0]!, hits.length);
+}
 
-  let normStart: number;
-  let normEnd: number;
-  let score: number;
-  const at = p.text.indexOf(q);
-  if (at >= 0) {
-    normStart = at;
-    normEnd = at + q.length;
-    score = p.text.indexOf(q, at + 1) >= 0 ? 0.99 : 1;
-  } else {
-    const pageTokens = tokenise(p.text);
-    const found = fuzzyFind(tokenise(q), pageTokens);
-    if (!found || found.score < minScore) return notFound(found?.score);
-    normStart = pageTokens[found.first]!.start;
-    normEnd = pageTokens[found.last]!.end;
-    score = found.score;
+/** A quote that starts at the end of page a and carries on at the start of the page after it. */
+function acrossBreak(q: string, a: ParsedPage, b: ParsedPage, minScore: number, ignore: Set<string>): GroundingResult | null {
+  const offset = a.text.length + 1;
+  const joined: ParsedPage = {
+    page: a.page,
+    width: a.width,
+    height: a.height,
+    text: `${a.text}\n${b.text}`,
+    words: [...a.words, ...b.words.map((w) => ({ ...w, start: w.start + offset, end: w.end + offset }))],
+  };
+  const p = normalise(joined.text);
+  const { hits } = locate(q, p, minScore, ignore);
+  const crossing = hits.filter((h) => p.from[h.normStart]! < a.text.length && p.to[h.normEnd - 1]! > offset);
+  if (crossing.length !== 1) return null;
+  const hit = crossing[0]!;
+  const start = p.from[hit.normStart]!;
+  const end = p.to[hit.normEnd - 1]! - offset;
+  const first = boxesFor(a, start, a.text.length);
+  const second = boxesFor(b, 0, end);
+  return {
+    status: 'grounded',
+    score: round3(hit.score),
+    page: a.page,
+    start,
+    end: a.text.length,
+    boxes: first,
+    fractions: first.map((x) => toFraction(x, a)),
+    match: hit.exact ? 'exact' : 'fuzzy',
+    more: [{ page: b.page, start: 0, end, boxes: second, fractions: second.map((x) => toFraction(x, b)) }],
+  };
+}
+
+/**
+ * Finds a quote in a document, starting where the extractor said it was.
+ *   1. On the claimed page. Once: found. More than once: ambiguous, nothing is taken.
+ *   2. Running across the break between the claimed page and the one before or after it.
+ *   3. On any other page. Found only if it is in exactly one place in the whole document; the page it is really
+ *      on is reported, with the page that was claimed kept in claimedPage.
+ * Anything else is not found. A page the parser could not read has no text, so a quote claimed on it is not found.
+ */
+export function groundInDocument(quote: string, pages: ParsedPage[], claimedPage: number, minScore: number, options?: GroundOptions): GroundingResult {
+  const notFound = (score = 0, note?: string): GroundingResult => ({ status: 'not_found', score: round3(score), page: claimedPage, boxes: [], ...(note ? { note } : {}) });
+  const q = normalise(quote).text;
+  if (!q.trim()) return notFound();
+  const ignore = normalisedIgnore(options);
+  const readable = pages.filter((p) => p.positionsOk !== false);
+  const claimed = pages.find((p) => p.page === claimedPage);
+  if (claimed && claimed.positionsOk === false) return notFound(0, 'page could not be read for positions');
+
+  const norms = new Map<ParsedPage, Normalised>();
+  const norm = (p: ParsedPage) => norms.get(p) ?? (norms.set(p, normalise(p.text)), norms.get(p)!);
+  const withClaim = (r: GroundingResult): GroundingResult => (r.page === claimedPage ? r : { ...r, claimedPage });
+  let best = 0;
+
+  // 1. The claimed page.
+  if (claimed) {
+    const { hits, best: b } = locate(q, norm(claimed), minScore, ignore);
+    best = b;
+    if (hits.length > 1) return { status: 'ambiguous', score: 1, page: claimedPage, boxes: [], pages: [claimedPage] };
+    if (hits.length === 1) return groundedOn(claimed, norm(claimed), hits[0]!, 1);
   }
 
-  const start = p.from[normStart]!;
-  const end = p.to[normEnd - 1]!;
-  const words = page.words.filter((w) => w.start < end && w.end > start);
-  return { status: 'grounded', score: round3(score), page: page.page, start, end, boxes: lineBoxes(words.map((w) => w.box)) };
+  // 2. Across a page break next to the claimed page.
+  const byNumber = (n: number) => readable.find((p) => p.page === n);
+  for (const [a, b] of [[claimedPage - 1, claimedPage], [claimedPage, claimedPage + 1]] as const) {
+    const pa = byNumber(a);
+    const pb = byNumber(b);
+    const r = pa && pb ? acrossBreak(q, pa, pb, minScore, ignore) : null;
+    if (r) return withClaim(r);
+  }
+
+  // 3. Any other page: only if it is in one place in the whole document.
+  const elsewhere: { page: ParsedPage; hit: Hit; count: number }[] = [];
+  for (const p of readable) {
+    if (p.page === claimedPage) continue;
+    const { hits, best: b } = locate(q, norm(p), minScore, ignore);
+    best = Math.max(best, b);
+    for (const hit of hits) elsewhere.push({ page: p, hit, count: hits.length });
+  }
+  const pagesHit = [...new Set(elsewhere.map((e) => e.page.page))];
+  if (elsewhere.length > 1) return { status: 'ambiguous', score: 1, page: claimedPage, boxes: [], pages: pagesHit };
+  if (elsewhere.length === 1) {
+    const e = elsewhere[0]!;
+    return withClaim(groundedOn(e.page, norm(e.page), e.hit, 1));
+  }
+
+  // A quote across a page break away from the claimed page.
+  const crossings: GroundingResult[] = [];
+  for (let i = 0; i + 1 < readable.length; i++) {
+    const a = readable[i]!;
+    const b = readable[i + 1]!;
+    if (b.page !== a.page + 1 || [a.page, b.page].includes(claimedPage)) continue;
+    const r = acrossBreak(q, a, b, minScore, ignore);
+    if (r) crossings.push(r);
+  }
+  if (crossings.length > 1) return { status: 'ambiguous', score: 1, page: claimedPage, boxes: [], pages: crossings.map((c) => c.page) };
+  if (crossings.length === 1) return withClaim(crossings[0]!);
+
+  return notFound(best);
 }

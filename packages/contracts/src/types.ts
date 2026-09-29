@@ -2,6 +2,7 @@
 
 import type { IsoDate } from '../../core/src/index.ts';
 import type { GroundingResult } from '../../documents/src/index.ts';
+import type { ValueCheck } from './value-check.ts';
 
 export type FieldKey =
   | 'counterparty' | 'agreementType' | 'premises' | 'startDate' | 'endDate' | 'termMonths'
@@ -48,12 +49,17 @@ export interface Extraction {
 
 export interface Source {
   file: string;
+  /** The page the quote was found on. When it isn't found, the page the extractor claimed. */
   page: number;
+  /** Set when the quote was found on a different page from the one the extractor claimed. */
+  claimedPage?: number;
   clause?: string;
   /** False when the clause number isn't on the cited page: show the page chip only. */
   clauseChecked: boolean;
   quote: string;
   grounding: GroundingResult;
+  /** Whether the value appears in the wording the quote matched. Absent for amendments. */
+  valueCheck?: ValueCheck;
 }
 
 export interface RecordCandidate extends Source {

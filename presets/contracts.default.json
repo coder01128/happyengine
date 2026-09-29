@@ -2,7 +2,7 @@
   "service": "Happy Contracts",
   "version": 1,
   "parser": { "tier": "cost_effective", "scannedTier": "agentic", "maxPagesPerAgreement": 60 },
-  "grounding": { "minScore": 0.9 },
+  "grounding": { "minScore": 0.9, "ignoreTokens": ["sample", "copy", "draft", "specimen"] },
   "fields": [
     { "key": "counterparty", "label": "Counterparty", "required": false },
     { "key": "agreementType", "label": "Agreement type", "required": false },

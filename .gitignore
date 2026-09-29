@@ -16,3 +16,6 @@ eval/contracts/*
 !eval/contracts/demo-marula/
 !eval/contracts/scan-marula/
 !eval/contracts/render/
+
+# The raw LlamaParse output kept beside a saved parse, for re-mapping without paying to parse again.
+eval/contracts/*/parsed/*/raw/

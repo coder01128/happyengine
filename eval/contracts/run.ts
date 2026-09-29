@@ -18,7 +18,7 @@ import {
   buildRecord, contractsInstructions, contractsSchema, sameValue, validateContractsPreset,
   type AgreementRecord, type Extraction, type FieldKey,
 } from '../../packages/contracts/src/index.ts';
-import { createClaudeExtractor, createLlamaParseParser, type ExtractResult, type ParsedDocument, type Parser } from '../../packages/documents/src/index.ts';
+import { createClaudeExtractor, createLlamaParseParser, documentFromSidecar, type ExtractResult, type LlamaParser, type ParsedDocument } from '../../packages/documents/src/index.ts';
 import { createPdfjsParser } from '../../packages/documents/src/parsers/pdfjs.ts';
 import { loadSecrets } from '../../scripts/env.ts';
 import { addScore, emptyScore, pct, perfect, scoreAgreement, type Boxes, type Expected, type Score } from './score.ts';
@@ -84,7 +84,7 @@ async function main() {
 
     // Parse once; reuse the saved parse unless --reparse.
     let cacheDir = '';
-    let parser: Parser | undefined;
+    let llama: LlamaParser | undefined;
     const parsed: Record<string, ParsedDocument> = {};
     let pages = 0;
     let sampleCredits = 0;
@@ -93,15 +93,29 @@ async function main() {
       for (const a of sample.agreements) {
         for (const file of a.files) {
           const cache = join(cacheDir, file.replace(/\.pdf$/i, '.json'));
-          if (existsSync(cache) && !flag('reparse')) parsed[file] = readJson(cache);
+          // LlamaParse's raw sidecar is kept beside the parse (git-ignored), so the mapping can be run again for free.
+          const raw = join(cacheDir, 'raw', file.replace(/\.pdf$/i, '.jsonl'));
+          const tier = opt('tier') ?? 'cost_effective';
+          if (parserName === 'llamaparse' && existsSync(raw) && !flag('reparse')) {
+            parsed[file] = documentFromSidecar(readFileSync(raw, 'utf8'), tier);
+            writeFileSync(cache, JSON.stringify(parsed[file]) + '\n');
+          } else if (existsSync(cache) && !flag('reparse')) parsed[file] = readJson(cache);
           else {
             if (parserName === 'fixture') throw new Error(`No saved parse for ${file} in ${cacheDir}`);
-            parser ??= parserName === 'pdfjs'
-              ? createPdfjsParser()
-              : createLlamaParseParser({ apiKey: process.env.LLAMA_CLOUD_API_KEY ?? '', baseUrl: process.env.LLAMA_CLOUD_BASE_URL, offshoreAllowed: true });
-            parsed[file] = await parser.parse(readFileSync(join(dir, file)), { filename: file, tier: opt('tier') ?? 'cost_effective' });
-            sampleCredits += parsed[file]!.creditsEstimate ?? 0;
             mkdirSync(cacheDir, { recursive: true });
+            const bytes = readFileSync(join(dir, file));
+            if (parserName === 'pdfjs') {
+              parsed[file] = await createPdfjsParser().parse(bytes, { filename: file, tier });
+            } else {
+              llama ??= createLlamaParseParser({ apiKey: process.env.LLAMA_CLOUD_API_KEY ?? '', baseUrl: process.env.LLAMA_CLOUD_BASE_URL, offshoreAllowed: true });
+              const got = await llama.parseWithRaw(bytes, { filename: file, tier });
+              parsed[file] = got.document;
+              if (got.sidecar !== undefined) {
+                mkdirSync(join(cacheDir, 'raw'), { recursive: true });
+                writeFileSync(raw, got.sidecar);
+              }
+            }
+            sampleCredits += parsed[file]!.creditsEstimate ?? 0;
             writeFileSync(cache, JSON.stringify(parsed[file]) + '\n');
           }
           pages += parsed[file]!.pageCount;
@@ -205,7 +219,8 @@ function printScore(s: Score) {
   const list = (xs: string[]) => xs.slice(0, 12).forEach((x) => console.log(`              · ${x}`));
   console.log(`  fields      ${s.fields.correct}/${s.fields.total} correct`);
   list(s.fields.misses);
-  console.log(`  grounding   ${s.grounding.grounded}/${s.grounding.total} quotes found on their page (${pct(s.grounding.grounded, s.grounding.total)})`);
+  const g = s.grounding;
+  console.log(`  grounding   ${g.grounded}/${g.total} quotes found (${pct(g.grounded, g.total)}): ${g.exact} exact, ${g.fuzzy} fuzzy · ${g.elsewhere} on a different page than claimed · ${g.ambiguous} ambiguous · value not in cited text: ${g.valueFailed}`);
   console.log(`  highlights  ${s.highlights.ok}/${s.highlights.total} sources overlap the expected box (IoU ≥ 0.5)`);
   list(s.highlights.misses);
   console.log(`  flags       ${s.flags.found}/${s.flags.expected} found · ${s.flags.unexpected.length} unexpected`);

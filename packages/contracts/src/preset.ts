@@ -10,7 +10,11 @@ export interface ContractsPreset {
   /** Parser tier for digital PDFs; scanned uploads use scannedTier. Agreements over the page cap are refused. */
   parser: { tier: ParserTier; scannedTier: 'agentic' | 'agentic_plus'; maxPagesPerAgreement: number };
   /** Fuzzy match threshold (0–1) for finding an extracted quote on its page. Below it: "Not verified — review". */
-  grounding: { minScore: number };
+  grounding: {
+    minScore: number;
+    /** Stray words a watermark or stamp drops into the text ("SAMPLE", "COPY"). Skipped when matching a quote, unless the quote itself has the word. */
+    ignoreTokens?: string[];
+  };
   /** Display order in the register. A required field that isn't found is flagged for review. */
   fields: { key: string; label: string; required: boolean }[];
   /** Days before a key date when it shows as "Needs attention" and "Upcoming". */
@@ -54,6 +58,8 @@ function problemsWith(p: unknown): string[] {
 
   const minScore = isObject(p.grounding) ? p.grounding.minScore : undefined;
   need(typeof minScore === 'number' && minScore >= 0 && minScore <= 1, 'grounding.minScore: must be a number from 0 to 1');
+  const ignore = isObject(p.grounding) ? p.grounding.ignoreTokens : undefined;
+  need(ignore === undefined || (Array.isArray(ignore) && ignore.every(isText)), 'grounding.ignoreTokens: must be a list of words');
 
   if (!Array.isArray(p.fields) || p.fields.length === 0) problems.push('fields: needs at least one field');
   else {

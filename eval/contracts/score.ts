@@ -24,7 +24,7 @@ export type Boxes = Record<string, Record<string, (Box & { page: number })[]>>;
 
 export interface Score {
   fields: { correct: number; total: number; misses: string[] };
-  grounding: { grounded: number; total: number };
+  grounding: { grounded: number; total: number; exact: number; fuzzy: number; ambiguous: number; elsewhere: number; valueFailed: number };
   highlights: { ok: number; total: number; misses: string[] };
   flags: { found: number; expected: number; missed: string[]; unexpected: string[] };
   dates: { correct: number; total: number; misses: string[]; unexpected: string[] };
@@ -32,7 +32,7 @@ export interface Score {
 
 export const emptyScore = (): Score => ({
   fields: { correct: 0, total: 0, misses: [] },
-  grounding: { grounded: 0, total: 0 },
+  grounding: { grounded: 0, total: 0, exact: 0, fuzzy: 0, ambiguous: 0, elsewhere: 0, valueFailed: 0 },
   highlights: { ok: 0, total: 0, misses: [] },
   flags: { found: 0, expected: 0, missed: [], unexpected: [] },
   dates: { correct: 0, total: 0, misses: [], unexpected: [] },
@@ -41,7 +41,15 @@ export const emptyScore = (): Score => ({
 export function addScore(a: Score, b: Score): Score {
   return {
     fields: { correct: a.fields.correct + b.fields.correct, total: a.fields.total + b.fields.total, misses: [...a.fields.misses, ...b.fields.misses] },
-    grounding: { grounded: a.grounding.grounded + b.grounding.grounded, total: a.grounding.total + b.grounding.total },
+    grounding: {
+      grounded: a.grounding.grounded + b.grounding.grounded,
+      total: a.grounding.total + b.grounding.total,
+      exact: a.grounding.exact + b.grounding.exact,
+      fuzzy: a.grounding.fuzzy + b.grounding.fuzzy,
+      ambiguous: a.grounding.ambiguous + b.grounding.ambiguous,
+      elsewhere: a.grounding.elsewhere + b.grounding.elsewhere,
+      valueFailed: a.grounding.valueFailed + b.grounding.valueFailed,
+    },
     highlights: { ok: a.highlights.ok + b.highlights.ok, total: a.highlights.total + b.highlights.total, misses: [...a.highlights.misses, ...b.highlights.misses] },
     flags: {
       found: a.flags.found + b.flags.found,
@@ -117,9 +125,14 @@ export function scoreAgreement(
 
   // Grounding: every quote the extractor gave, amendments included.
   const candidates = Object.values(record.fields).flatMap((f) => f?.candidates ?? []);
-  s.grounding.total = candidates.length + record.amendments.length;
-  s.grounding.grounded =
-    candidates.filter((c) => c.grounding.status === 'grounded').length + record.amendments.filter((a) => a.grounding.status === 'grounded').length;
+  const gs = [...candidates.map((c) => c.grounding), ...record.amendments.map((a) => a.grounding)];
+  s.grounding.total = gs.length;
+  s.grounding.grounded = gs.filter((g) => g.status === 'grounded').length;
+  s.grounding.exact = gs.filter((g) => g.status === 'grounded' && g.match === 'exact').length;
+  s.grounding.fuzzy = gs.filter((g) => g.status === 'grounded' && g.match === 'fuzzy').length;
+  s.grounding.ambiguous = gs.filter((g) => g.status === 'ambiguous').length;
+  s.grounding.elsewhere = gs.filter((g) => g.status === 'grounded' && g.claimedPage !== undefined).length;
+  s.grounding.valueFailed = candidates.filter((c) => c.valueCheck === 'failed').length;
 
   // Highlights: each source of an expected field overlaps one of its expected data-field boxes.
   if (boxes) {

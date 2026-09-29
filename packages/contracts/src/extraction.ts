@@ -104,9 +104,13 @@ export const contractsSchema = {
 export const contractsInstructions = `You read one agreement (its main document and any addenda) and record what it says about each field.
 
 Rules:
-- Copy every quote character for character from inside one <page> tag. Keep the document's spelling, punctuation and line text. Don't paraphrase, correct or shorten words, and don't join text from different pages.
+- Copy every quote character for character from inside one <page> tag, as one continuous passage. Keep the document's spelling, punctuation and line text. Don't paraphrase, correct or shorten words, don't use ellipses ("…" or "...") to skip words, and don't join text from different places or pages.
+- Use the shortest passage that supports the value, but at least about 8 words, so it is unique on the page: include the defined term or the clause heading with the value. A bare "31 January 2027" is too short; "the Lease Period ends on 31 January 2027" is right.
+- When a value needs two separate passages (for example a date in one clause and its defined term in another), give one candidate per passage, each with the same value.
 - Report every clause that states a field's value, as a separate candidate, including clauses that disagree with each other. Never choose between them or merge them.
-- Use "blank" when the document has an unfilled line where the value belongs (for example "a period of ______ months"), and quote that line.
+- A quote must contain the value itself in full: a date with its day, month and year, an amount with its digits, a period with its number. If the value continues on the next line, quote through the end of it.
+- Use "blank" when the document has an unfilled line where the value belongs (for example "a period of ______ months"), and quote that line including the underscores or dots of the blank itself.
+- A heading or title that appears more than once on a page is not a good quote. Quote the sentence that states the value instead.
 - Use "not_stated" when the agreement doesn't give the value, and quote the nearest relevant clause.
 - State only what is written. Don't calculate end dates, deadlines or amounts, and don't say whether a term is enforceable, reasonable or advisable.
 - A fee change with no amount, percentage, cap or index is { "kind": "unquantified" }.

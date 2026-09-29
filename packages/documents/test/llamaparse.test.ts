@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { createLlamaParseParser, creditsFromUsage, ground, LLAMA_EU_BASE_URL, OffshoreNotApproved, ParserError, type LlamaParser } from '../src/index.ts';
+import { createLlamaParseParser, creditsFromUsage, ground, LLAMA_EU_BASE_URL, tableCells, OffshoreNotApproved, ParserError, type LlamaParser } from '../src/index.ts';
 
 // Saved sample response (see _note in the JSON): the poll result and its grounded_items sidecar.
 const fixtures = join(import.meta.dirname, 'fixtures');
@@ -153,6 +153,68 @@ describe('llamaparse adapter: positions, unreadable pages, version and usage', (
     expect(doc.pages.map((p) => p.page)).toEqual([1, 2, 3]);
     expect(doc.pages[1]).toEqual({ page: 2, width: 842, height: 595, text: '', words: [], positionsOk: false, positionsError: 'page render failed' });
     expect(doc.pages[0]!.positionsOk).toBeUndefined();
+  });
+
+  it('places a real table\'s words: cell spans count from the cell text, not from the table markdown', async () => {
+    // A page from a live parse (made-up contract): a paragraph, then a 9-row order-form table.
+    const real = readFileSync(join(fixtures, 'llamaparse-real-table.jsonl'), 'utf8');
+    const pages = real.trim().split('\n').map((l) => JSON.parse(l));
+    const m = mockFetch([json({ job: { id: 'j', status: 'COMPLETED' }, items: { pages } })]);
+    const doc = await make(m.fn).fetchResult('j');
+    if (doc === 'pending') throw new Error('pending');
+    const p = doc.pages[0]!;
+    // Every word sits on its own text in page.text, and the table's cells have words.
+    for (const w of p.words) expect(p.text.slice(w.start, w.end)).toBe(w.text);
+    const start = p.text.indexOf('| 3 · Subscription Start Date');
+    expect(start).toBeGreaterThan(0);
+    expect(p.words.filter((w) => w.start >= start && w.end <= start + 60).map((w) => w.text)).toEqual(['3', '·', 'Subscription', 'Start', 'Date', '1', 'March', '2026']);
+    // The quote a model gives for that row grounds, and its boxes are the row's, not somewhere else on the page.
+    const g = ground('| 3 · Subscription Start Date | 1 March 2026', p, 0.9);
+    expect(g).toMatchObject({ status: 'grounded', match: 'exact' });
+    expect(g.boxes.length).toBeGreaterThan(0);
+    for (const b of g.boxes) {
+      expect(b.y).toBeGreaterThan(250);
+      expect(b.y + b.h).toBeLessThan(275); // row 3 of the table (the sidecar puts it at y≈251-260)
+      expect(b.x).toBeGreaterThan(25);
+    }
+  });
+
+  it('locates table cells inside the markdown, past bold markup and escaped pipes', () => {
+    const md = '| Item | Rate |\n| --- | --- |\n| a \\| b | **R32 000.00** |';
+    const cells = tableCells(md, [['Item', 'Rate'], ['a \\| b', 'R32 000.00']]);
+    expect(cells).toHaveLength(2);
+    expect(md.slice(cells[0]![0]!.start, cells[0]![0]!.start + 4)).toBe('Item');
+    expect(md.slice(cells[1]![1]!.start, cells[1]![1]!.start + 10)).toBe('R32 000.00');
+    expect(tableCells('| x |\n| --- |\n| y |', [['x'], ['not here']])[1]![0]).toBeUndefined(); // a cell that can't be found is left out
+  });
+
+  it('drops an item LlamaParse repeated at the same place (seen on a live /Rotate 90 page)', async () => {
+    const item = (md: string, xs: number[]) => ({
+      type: 'text', md,
+      grounding: { lines: [{ span: [0, md.length] as [number, number], bbox: { x: xs[0]!, y: 40, w: 50, h: 10 }, words: md.split(' ').map((w, i, all) => {
+        const start = all.slice(0, i).join(' ').length + (i ? 1 : 0);
+        return { span: [start, start + w.length] as [number, number], bbox: { x: xs[i]!, y: 40, w: 40, h: 10 } };
+      }) }] },
+    });
+    const pages = [{
+      page_number: 1, page_width: 842, page_height: 595, success: true,
+      items: [item('Quebec Romeo', [40, 700]), item('Quebec', [40]), item('Victor', [200]), item('Victor Whiskey', [200, 690]), item('Whiskey', [690])],
+    }];
+    const m = mockFetch([json({ job: { id: 'j', status: 'COMPLETED' }, items: { pages } })]);
+    const doc = await make(m.fn).fetchResult('j');
+    if (doc === 'pending') throw new Error('pending');
+    const p = doc.pages[0]!;
+    expect(p.text).toBe('Quebec Romeo\n\nVictor Whiskey'); // the repeats are gone, each word once
+    expect(p.words.map((w) => w.text)).toEqual(['Quebec', 'Romeo', 'Victor', 'Whiskey']);
+    for (const w of p.words) expect(p.text.slice(w.start, w.end)).toBe(w.text);
+  });
+
+  it('keeps two identical items that are at different places', async () => {
+    const item = (x: number) => ({ type: 'text', md: 'Total', grounding: { lines: [{ span: [0, 5] as [number, number], bbox: { x, y: 10, w: 30, h: 10 }, words: [{ span: [0, 5] as [number, number], bbox: { x, y: 10, w: 30, h: 10 } }] }] } });
+    const m = mockFetch([json({ job: { id: 'j', status: 'COMPLETED' }, items: { pages: [{ page_number: 1, page_width: 600, page_height: 800, success: true, items: [item(10), item(300)] }] } })]);
+    const doc = await make(m.fn).fetchResult('j');
+    if (doc === 'pending') throw new Error('pending');
+    expect(doc.pages[0]!.text).toBe('Total\n\nTotal');
   });
 
   it('fails when no page could be read', async () => {

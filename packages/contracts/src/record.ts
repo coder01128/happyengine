@@ -3,7 +3,8 @@
 // what is flagged for review and calculates every date.
 
 import { addDays, addMonths, type IsoDate } from '../../core/src/index.ts';
-import { BLANK, ground, normalise, type GroundingResult, type ParsedDocument, type ParsedPage } from '../../documents/src/index.ts';
+import { BLANK, groundInDocument, normalise, type GroundingResult, type ParsedDocument, type ParsedPage } from '../../documents/src/index.ts';
+import { checkValue } from './value-check.ts';
 import type { ContractsPreset } from './preset.ts';
 import type {
   AgreementRecord, AgreementStatus, Candidate, CandidateValue, Decision, Extraction, FieldKey, KeyDate,
@@ -64,30 +65,55 @@ function findPage(parsed: Record<string, ParsedDocument>, file: string, page: nu
   return parsed[file]?.pages.find((p) => p.page === page);
 }
 
-function groundSource(c: { quote: string; file: string; page: number; clause?: string }, parsed: Record<string, ParsedDocument>, minScore: number): Source {
-  const page = findPage(parsed, c.file, c.page);
-  const grounding: GroundingResult = page ? ground(c.quote, page, minScore) : { status: 'not_found', score: 0, page: c.page, boxes: [] };
+/** The quote is looked for on its claimed page first, then across a page break, then anywhere else in the file. */
+function groundSource(c: { quote: string; file: string; page: number; clause?: string }, parsed: Record<string, ParsedDocument>, preset: ContractsPreset): Source {
+  const pages = parsed[c.file]?.pages ?? [];
+  const grounding: GroundingResult = pages.length
+    ? groundInDocument(c.quote, pages, c.page, preset.grounding.minScore, { ignoreTokens: preset.grounding.ignoreTokens })
+    : { status: 'not_found', score: 0, page: c.page, boxes: [] };
+  const found = grounding.status === 'grounded';
+  // Where it really is. If it isn't found, the page that was claimed.
+  const page = found ? grounding.page : c.page;
   const num = clauseNumber(c.clause);
+  // The clause number must appear on the page the quote is on (or the pages it runs across).
+  const labelPages = found ? [page, ...(grounding.more ?? []).map((m) => m.page)] : [page];
+  const labelText = labelPages.map((n) => pages.find((p) => p.page === n)?.text ?? '').join('\n');
   return {
     file: c.file,
-    page: c.page,
+    page,
+    ...(found && grounding.claimedPage !== undefined ? { claimedPage: grounding.claimedPage } : {}),
     ...(c.clause ? { clause: c.clause } : {}),
-    clauseChecked: !!(page && num && numberInText(num, page.text)),
+    clauseChecked: !!(num && numberInText(num, labelText)),
     quote: c.quote,
     grounding,
   };
 }
 
-/** The page text a grounded source matched. */
+/** The page text a grounded source matched (all of it, when the quote runs across a page break). */
 function matchedText(s: Source, parsed: Record<string, ParsedDocument>): string {
+  const g = s.grounding;
   const page = findPage(parsed, s.file, s.page);
-  return page && s.grounding.start !== undefined ? page.text.slice(s.grounding.start, s.grounding.end) : '';
+  if (!page || g.start === undefined) return '';
+  const first = page.text.slice(g.start, g.end);
+  const rest = (g.more ?? []).map((m) => findPage(parsed, s.file, m.page)?.text.slice(m.start, m.end) ?? '');
+  return [first, ...rest].join('\n');
 }
 
 const isGrounded = (s: Source) => s.grounding.status === 'grounded';
-const toSource = ({ file, page, clause, clauseChecked, quote, grounding }: RecordCandidate): Source => ({
-  file, page, ...(clause ? { clause } : {}), clauseChecked, quote, grounding,
+/** Found in one place, and the value is in the wording that was found. Only these can stand as a source. */
+const isSupported = (s: Source) => isGrounded(s) && s.valueCheck !== 'failed';
+const toSource = ({ file, page, claimedPage, clause, clauseChecked, quote, grounding, valueCheck }: RecordCandidate): Source => ({
+  file, page, ...(claimedPage !== undefined ? { claimedPage } : {}), ...(clause ? { clause } : {}), clauseChecked, quote, grounding,
+  ...(valueCheck ? { valueCheck } : {}),
 });
+
+/** Why a candidate can't stand, in the words shown to the reviewer. */
+function whyNot(s: Source): string {
+  if (s.grounding.status === 'ambiguous') return 'the quoted wording appears in more than one place';
+  if (s.grounding.status === 'grounded' && s.valueCheck === 'failed') return 'value not found in cited text';
+  if (s.grounding.note) return s.grounding.note;
+  return 'the quoted wording was not found on its page';
+}
 
 // ---------------------------------------------------------------------------
 // Rules
@@ -102,11 +128,12 @@ interface Resolved {
 function resolveField(key: FieldKey, label: string, candidates: RecordCandidate[], parsed: Record<string, ParsedDocument>, required: boolean): Resolved {
   const field: RecordField = { key, label, status: 'recorded', candidates };
   const items: ReviewItem[] = [];
-  const active = candidates.map((c, i) => ({ c, i })).filter(({ c }) => isGrounded(c) && !c.superseded);
+  const active = candidates.map((c, i) => ({ c, i })).filter(({ c }) => isSupported(c) && !c.superseded);
 
   if (!active.length) {
     field.status = 'not_verified';
-    items.push({ id: `not_verified:${key}`, kind: 'not_verified', fieldKey: key, summary: `${label}: the quoted wording was not found on its page`, sources: candidates.map(toSource) });
+    const reasons = [...new Set(candidates.filter((c) => !c.superseded).map(whyNot))];
+    items.push({ id: `not_verified:${key}`, kind: 'not_verified', fieldKey: key, summary: `${label}: ${reasons.join('; ') || 'the quoted wording was not found on its page'}`, sources: candidates.map(toSource) });
     return { field, items };
   }
 
@@ -317,18 +344,26 @@ function finish(record: AgreementRecord, preset: ContractsPreset): AgreementReco
 
 export function buildRecord(input: BuildInput): AgreementRecord {
   const { files, parsed, extraction, preset } = input;
-  const minScore = preset.grounding.minScore;
   const labels = new Map(preset.fields.map((f) => [f.key, f]));
 
   const candidates = new Map<FieldKey, RecordCandidate[]>();
   for (const [key, list] of Object.entries(extraction.fields) as [FieldKey, Candidate[]][]) {
-    if (list?.length) candidates.set(key, list.map((c) => ({ ...groundSource(c, parsed, minScore), value: c.value })));
+    if (!list?.length) continue;
+    candidates.set(
+      key,
+      list.map((c) => {
+        const source = groundSource(c, parsed, preset);
+        // Only a quote found in one place has wording to check the value against.
+        const valueCheck = isGrounded(source) ? checkValue(key, c.value, matchedText(source, parsed)) : undefined;
+        return { ...source, ...(valueCheck ? { valueCheck } : {}), value: c.value };
+      }),
+    );
   }
 
   // Amendments: applied only when the addendum quote is grounded and the target clause is in an earlier file.
   const reviewItems: ReviewItem[] = [];
   const amendments = extraction.amendments.map((a, n) => {
-    const source = groundSource(a, parsed, minScore);
+    const source = groundSource(a, parsed, preset);
     const target = clauseNumber(a.targetClause);
     const earlier = files.slice(0, Math.max(0, files.indexOf(a.file)));
     const targetFound = !!target && earlier.some((f) => parsed[f]?.pages.some((p) => numberInText(target, p.text)));
