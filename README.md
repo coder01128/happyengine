@@ -14,6 +14,48 @@ Behaviour and UI spec: `happyai/docs/happy-month-end-demo-brief.md` and `happyai
 | `eval/month-end/<sample>/` | Test set: one folder per real month (see below) |
 | `eval/run.ts` | Runs every sample and prints plain numbers |
 | `eval/synth/generate.ts` | Generates the synthetic `synth-*` samples (clean, narrative, messy) with their true answers |
+| `supabase/migrations/` | Database: organisations, memberships, runs, engine output, review state, append-only timeline, storage bucket. Row-level security on every table |
+| `supabase/functions/` | `run-matching` (upload → engine → stored in one transaction) and `approve-run` (re-checks with the engine, approves only at R0.00) |
+| `scripts/smoke.ts` | End-to-end check against the local stack, including organisation isolation |
+
+## Local Supabase
+
+Runs in Docker Desktop next to n8n. Needs the Docker CLI on PATH (`C:\Users\mrbra\AppData\Local\Programs\DockerDesktop\resources\bin`).
+
+```
+supabase start -x realtime,imgproxy,logflare,vector,supavisor
+```
+Starts the stack. Ends with a table of URLs; Studio (the database browser) is at http://127.0.0.1:54323.
+
+```
+supabase functions serve
+```
+Serves the edge functions. Leave it running in its own terminal.
+
+```
+npm run smoke
+```
+Runs the end-to-end check. Ends with `All checks passed`. It creates throwaway organisations and test users and deletes them at the end.
+
+```
+supabase db reset
+```
+Rebuilds the local database from the migrations (wipes local data).
+
+```
+supabase stop
+```
+Stops the stack. Data is kept until `supabase db reset`.
+
+Who can do what:
+
+| Role | Can |
+| --- | --- |
+| uploader | Start runs, upload documents, run matching |
+| reviewer | All of the above, record decisions, approve journals, approve the reconciliation |
+| admin | Same as reviewer (organisation settings come later) |
+
+Organisations, presets and memberships are created by happyai (service role) during onboarding. Deleting an organisation deletes all its rows, including its timeline; its storage files must be removed first (see `cleanup()` in `scripts/smoke.ts`).
 
 ## Matching rules
 

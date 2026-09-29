@@ -9,9 +9,11 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "eval": "node eval/run.ts",
-    "synth": "node eval/synth/generate.ts"
+    "synth": "node eval/synth/generate.ts",
+    "smoke": "node scripts/smoke.ts"
   },
   "devDependencies": {
+    "@supabase/supabase-js": "^2.117.2",
     "@types/node": "^24.0.0",
     "typescript": "^5.9.0",
     "vitest": "^5.0.2"
