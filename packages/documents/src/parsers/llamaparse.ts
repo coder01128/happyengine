@@ -59,7 +59,7 @@ export interface LlamaPage {
   items?: LlamaItem[];
 }
 interface LlamaJobResponse {
-  job?: { id: string; status: string; tier?: string; error_message?: string | null };
+  job?: { id: string; status: string; tier?: string; error_message?: string | null; usage?: unknown };
   items?: { pages?: LlamaPage[] };
   metadata?: { version?: string };
   usage?: unknown;
@@ -164,7 +164,7 @@ export function createLlamaParseParser(cfg: LlamaParseConfig): LlamaParser {
     }
     const tier = body.job?.tier;
     const parsed = mapLlamaPages(pages);
-    const creditsUsed = creditsFromUsage(body.usage);
+    const creditsUsed = creditsFromUsage(body.job?.usage ?? body.usage);
     return {
       document: {
         parser: 'llamaparse',

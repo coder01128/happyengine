@@ -161,7 +161,8 @@ describe('llamaparse adapter: positions, unreadable pages, version and usage', (
   });
 
   it('returns the raw sidecar text, the version it resolved to and the credits used', async () => {
-    const job = { ...JSON.parse(jobJson), metadata: { version: '2026-01-08' }, usage: { credits_used: 6 } };
+    const base = JSON.parse(jobJson);
+    const job = { ...base, job: { ...base.job, usage: { credits: 6 } }, metadata: { version: '2026-01-08' } };
     const m = mockFetch([json(job), new Response(sidecar)]);
     const r = await make(m.fn).fetchWithRaw('job-123');
     if (r === 'pending') throw new Error('pending');
