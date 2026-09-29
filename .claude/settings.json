@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(./node_modules/**)",
+      "Read(./**/node_modules/**)",
+      "Read(./**/dist/**)",
+      "Read(./supabase/.temp/**)",
+      "Read(./package-lock.json)",
+      "Read(./.env*)",
+      "Read(./**/.env*)",
+      "Read(./.local/**)"
+    ]
+  }
+}
