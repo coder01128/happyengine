@@ -29,6 +29,7 @@ These are blocked in `.claude/settings.json` for the Read, Grep and Glob tools. 
 | `packages/core/` (`@happy/core`) | Money and dates: integer cents, `R12 450.00` formatting, UTC date-only arithmetic (days, calendar months), today in Johannesburg | Shared by every service |
 | `packages/month-end/` (`@happy/month-end`) | Month-End: CSV/OFX ingest, matching Rules 1–6, splits, reconciliation, approval gate | Month-End only |
 | `packages/contracts/` (`@happy/contracts`) | Contracts preset type and validation (engine comes in brief 05) | Contracts only |
+| `packages/documents/` (`@happy/documents`) | Parser adapters (fixture, LlamaParse; local PDF.js at `src/parsers/pdfjs.ts`, Node only), Claude extractor, quote check (grounding), offshore guard | Shared by document services |
 | `supabase/migrations/…_core.sql`, `…_storage.sql` | Organisations, memberships, roles, RLS helpers, append-only timeline, private documents bucket | Shared |
 | `supabase/migrations/…_month_end.sql`, `…_split_suggestions.sql` | presets, runs, documents, lines, matches, exceptions, journals, decisions, checklist | Month-End (the presets table is shared) |
 | `supabase/migrations/…_contracts.sql` | agreements, agreement_files, parsed_pages, agreement_fields, key_dates, review_items, reminder_drafts; `orgs.offshore_processing_approved`; `timeline_events.agreement_id` | Contracts (the org flag is shared) |
@@ -40,16 +41,11 @@ These are blocked in `.claude/settings.json` for the Read, Grep and Glob tools. 
 
 **Happy Contracts** is built here, not in the separate `happycontracts` repo. Plan: `docs/contracts-plan.md`. Briefs: `docs/briefs/02`–`07`, one per session, in order. Never start a brief whose predecessors aren't merged.
 
-**Planned packages** (not built yet):
-
-```
-packages/documents   later: LlamaParse adapter, Claude extraction, quote check
-```
 
 ## Boundaries
 
 - Code moves into `packages/core` only when a second service actually needs it. Don't build general-purpose abstractions ahead of time.
-- A service package never imports another service package. Services share code only through `core` (and later `documents`).
+- A service package never imports another service package. Services share code only through `core` and `documents`.
 - Inside `packages/`, import other packages by **relative path to their `src/index.ts`**, not by package name. The Supabase edge runtime (Deno) doesn't resolve npm workspace names.
 - Edge functions import engine code only through files in `supabase/functions/_shared/`.
 

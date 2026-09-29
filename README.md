@@ -13,6 +13,10 @@ Behaviour and UI spec: `happyai/docs/happy-month-end-demo-brief.md` and `happyai
 | `packages/month-end/src/` | `@happy/month-end`. Pure TypeScript: CSV/OFX ingest, matching Rules 1–6, reconciliation panel, review/approval gate. Imports core by relative path |
 | `packages/month-end/test/` | Unit tests. `marula.test.ts` is the demo brief's fixture and verified arithmetic; `rule5.test.ts` and `split.test.ts` cover suggestions |
 | `packages/contracts/src/` | `@happy/contracts`. Contracts preset type and `validateContractsPreset()` |
+| `packages/documents/src/` | `@happy/documents`. Parser adapters (fixture, LlamaParse EU, local PDF.js for digital PDFs), Claude extractor, quote check with word boxes, offshore guard |
+| `scripts/parse-file.ts` | Parses one PDF with `pdfjs` or `llamaparse` and records the result under `parsed/` |
+| `scripts/check-contracts-pdfjs.ts` | Checks the PDF.js parser and quote check against the Contracts test set |
+| `supabase/functions/.env.example` | Names of the secrets (LlamaParse, Anthropic). Copy to `.env`, which is git-ignored |
 | `presets/contracts.default.json` | Default Contracts preset: parser tiers, grounding threshold, register fields, alert windows, review options, preset searches, reminder wording |
 | `eval/contracts/` | Contracts test set: the five demo agreements as digital and scan-style PDFs, with correct answers and highlight boxes |
 | `presets/month-end.default.json` | Default Month-End preset: column mappings, matching settings, journal labels, resolution options, close checklist |

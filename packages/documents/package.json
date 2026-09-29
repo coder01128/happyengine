@@ -1,0 +1,13 @@
+{
+  "name": "@happy/documents",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./pdfjs": "./src/parsers/pdfjs.ts"
+  },
+  "dependencies": {
+    "pdfjs-dist": "^6.3.289"
+  }
+}

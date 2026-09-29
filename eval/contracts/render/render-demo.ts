@@ -107,19 +107,38 @@ function documentHTML(css: string, body: string, extraCss = ''): string {
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
-/** Box of every [data-field] element per page, in PDF points from the page's top-left corner. */
+/**
+ * Box of every [data-field] element per page, in PDF points from the page's top-left corner. The box
+ * covers the element's text, not its whole block: a short clause in a full-width block gets a box
+ * around its words, which is where a highlight belongs.
+ */
 async function measureBoxes(page: Page): Promise<{ boxes: Record<string, Box[]>; overflow: number[]; sheetW: number }> {
   const raw = await page.evaluate(() => {
     const sheets = [...document.querySelectorAll<HTMLElement>('.pdfpage')];
     const out: { field: string; page: number; x: number; y: number; w: number; h: number }[] = [];
     const overflow: number[] = [];
+    const textRects = (el: HTMLElement) => {
+      const rects: DOMRect[] = [];
+      const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+      for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+        if (!n.textContent?.trim()) continue;
+        const range = document.createRange();
+        range.selectNodeContents(n);
+        for (const r of range.getClientRects()) if (r.width > 0 && r.height > 0) rects.push(r);
+      }
+      return rects;
+    };
     sheets.forEach((sheet, i) => {
       const s = sheet.getBoundingClientRect();
       const paper = sheet.querySelector<HTMLElement>('.paper')!;
       if (paper.scrollHeight > paper.clientHeight + 1) overflow.push(i + 1);
       for (const el of sheet.querySelectorAll<HTMLElement>('[data-field]')) {
-        const r = el.getBoundingClientRect();
-        out.push({ field: el.dataset.field!, page: i + 1, x: r.left - s.left, y: r.top - s.top, w: r.width, h: r.height });
+        const rects = textRects(el);
+        const left = Math.min(...rects.map((r) => r.left));
+        const top = Math.min(...rects.map((r) => r.top));
+        const right = Math.max(...rects.map((r) => r.right));
+        const bottom = Math.max(...rects.map((r) => r.bottom));
+        out.push({ field: el.dataset.field!, page: i + 1, x: left - s.left, y: top - s.top, w: right - left, h: bottom - top });
       }
     });
     return { out, overflow, sheetW: sheets[0]!.getBoundingClientRect().width };
@@ -221,7 +240,8 @@ async function main() {
             const c = document.createElement('canvas');
             c.width = img.naturalWidth;
             c.height = img.naturalHeight;
-            const ctx = c.getContext('2d')!;
+            // CPU-backed canvas: GPU filtering is not bit-for-bit repeatable between runs.
+            const ctx = c.getContext('2d', { willReadFrequently: true })!;
             ctx.filter = `grayscale(1) brightness(.95) contrast(.93) blur(${blurPx}px)`;
             ctx.drawImage(img, 0, 0);
             ctx.filter = 'none';
@@ -243,7 +263,9 @@ async function main() {
 
       await page.setContent(
         documentHTML('', images.map((b64) => `<div class="pdfpage"><img alt="" src="data:image/jpeg;base64,${b64}"></div>`).join(''),
-          '.pdfpage img{display:block;width:100%;height:100%}'),
+          // No background under the image: Chromium sometimes paints a white background twice, which
+          // changes the PDF bytes between runs without changing how it looks.
+          'html,body,.pdfpage{background:none}.pdfpage img{display:block;width:100%;height:100%}'),
         { waitUntil: 'load' },
       );
       // Boxes for the scan copy: the digital boxes mapped through each image's position and size.

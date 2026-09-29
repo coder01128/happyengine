@@ -1,0 +1,12 @@
+{
+  "_note": "Hand-written from the documented v2 response shapes (29 Sep 2026), not recorded from the live API. Replace with a recorded response once a key is available.",
+  "job": { "id": "job-123", "project_id": "proj-1", "status": "COMPLETED", "tier": "cost_effective", "error_message": null },
+  "items": {
+    "pages": [
+      { "page_number": 1, "page_width": 612, "page_height": 792, "items": [ { "type": "heading", "md": "# Order form" } ] }
+    ]
+  },
+  "result_content_metadata": {
+    "grounded_items": { "exists": true, "size_bytes": 2048, "presigned_url": "https://storage.example/grounded_items.jsonl?sig=abc" }
+  }
+}
