@@ -12,6 +12,9 @@ Behaviour and UI spec: `happyai/docs/happy-month-end-demo-brief.md` and `happyai
 | `packages/core/test/` | Unit tests for money and dates |
 | `packages/month-end/src/` | `@happy/month-end`. Pure TypeScript: CSV/OFX ingest, matching Rules 1–6, reconciliation panel, review/approval gate. Imports core by relative path |
 | `packages/month-end/test/` | Unit tests. `marula.test.ts` is the demo brief's fixture and verified arithmetic; `rule5.test.ts` and `split.test.ts` cover suggestions |
+| `packages/contracts/src/` | `@happy/contracts`. Contracts preset type and `validateContractsPreset()` |
+| `presets/contracts.default.json` | Default Contracts preset: parser tiers, grounding threshold, register fields, alert windows, review options, preset searches, reminder wording |
+| `eval/contracts/` | Contracts test set: the five demo agreements as digital and scan-style PDFs, with correct answers and highlight boxes |
 | `presets/month-end.default.json` | Default Month-End preset: column mappings, matching settings, journal labels, resolution options, close checklist |
 | `eval/month-end/<sample>/` | Test set: one folder per real month (see below) |
 | `eval/run.ts` | Runs every sample and prints plain numbers |

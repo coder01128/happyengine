@@ -64,3 +64,31 @@ export function formatDate(d: IsoDate): string {
   const mon = MONTHS[m! - 1]!;
   return `${dd} ${mon[0]}${mon.slice(1).toLowerCase()} ${y}`;
 }
+
+function fromDayNumber(n: number): IsoDate {
+  return new Date(n * DAY_MS).toISOString().slice(0, 10);
+}
+
+/** "2027-03-01" − 60 days → addDays("2027-03-01", -60) = "2026-12-31". */
+export function addDays(d: IsoDate, n: number): IsoDate {
+  return fromDayNumber(dayNumber(d) + n);
+}
+
+/**
+ * Calendar months, clamped to the month end: 2026-01-31 + 1 month = 2026-02-28,
+ * 2027-01-31 − 3 months = 2026-10-31. n may be negative.
+ */
+export function addMonths(d: IsoDate, n: number): IsoDate {
+  const [y, m, dd] = d.split('-').map(Number);
+  const total = y! * 12 + (m! - 1) + n;
+  const year = Math.floor(total / 12);
+  const month = total - year * 12 + 1;
+  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  return `${year}-${String(month).padStart(2, '0')}-${String(Math.min(dd!, lastDay)).padStart(2, '0')}`;
+}
+
+/** Today's calendar date in a time zone. The only function here that reads the clock. */
+export function todayInZone(zone = 'Africa/Johannesburg', now: Date = new Date()): IsoDate {
+  // en-CA formats as YYYY-MM-DD.
+  return new Intl.DateTimeFormat('en-CA', { timeZone: zone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
+}

@@ -1,0 +1,40 @@
+{
+  "service": "Happy Contracts",
+  "version": 1,
+  "parser": { "tier": "cost_effective", "scannedTier": "agentic", "maxPagesPerAgreement": 60 },
+  "grounding": { "minScore": 0.9 },
+  "fields": [
+    { "key": "counterparty", "label": "Counterparty", "required": true },
+    { "key": "agreementType", "label": "Agreement type", "required": true },
+    { "key": "premises", "label": "Premises", "required": false },
+    { "key": "startDate", "label": "Start", "required": true },
+    { "key": "endDate", "label": "End", "required": true },
+    { "key": "termMonths", "label": "Term", "required": false },
+    { "key": "renewal", "label": "Renewal", "required": true },
+    { "key": "notice", "label": "Notice", "required": true },
+    { "key": "fee", "label": "Fee", "required": true },
+    { "key": "feeChange", "label": "Fee changes", "required": false },
+    { "key": "deposit", "label": "Deposit", "required": false },
+    { "key": "scope", "label": "Scope", "required": false }
+  ],
+  "alertWindows": { "attention": 30, "upcoming": 90 },
+  "reviewOptions": [
+    { "id": "confirm", "label": "Confirm recorded value", "outcome": "reviewed", "singleValueOnly": true },
+    { "id": "legal", "label": "Refer to legal review", "outcome": "with_legal", "singleValueOnly": false },
+    { "id": "clarify", "label": "Request clarification from counterparty", "outcome": "reviewed", "singleValueOnly": false }
+  ],
+  "presetSearches": [
+    { "id": "auto", "question": "Which agreements renew or continue automatically?", "kind": "fieldTag", "tag": "auto" },
+    { "id": "notice", "question": "Which notice deadlines fall on or before {before}?", "kind": "datesBefore", "tag": "notice", "beforeDays": 90 },
+    { "id": "fees", "question": "Which fees change during the term or on renewal?", "kind": "fieldTag", "tag": "fee-change" },
+    { "id": "review", "question": "Which terms are up for review?", "kind": "review" }
+  ],
+  "reminders": {
+    "to": "Office manager",
+    "subject": "Contract dates in the next {upcoming} days (register as at {asAt})",
+    "intro": "The following dates from the contract register fall within the next {upcoming} days:",
+    "item": "{n}. {date} ({days}) — {counterparty}, {type} ({ref})\n   {label}: {what} ({clause}).",
+    "outro": "Dates are calculated from the recorded wording. The signed agreement is the source of truth.",
+    "empty": "No contract dates fall within the next {upcoming} days."
+  }
+}

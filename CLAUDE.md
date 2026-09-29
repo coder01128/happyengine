@@ -26,10 +26,12 @@ These are blocked in `.claude/settings.json` for the Read, Grep and Glob tools. 
 
 | Path | What | Shared? |
 | --- | --- | --- |
-| `packages/core/` (`@happy/core`) | Money and dates: integer cents, `R12 450.00` formatting, UTC date-only arithmetic | Shared by every service |
+| `packages/core/` (`@happy/core`) | Money and dates: integer cents, `R12 450.00` formatting, UTC date-only arithmetic (days, calendar months), today in Johannesburg | Shared by every service |
 | `packages/month-end/` (`@happy/month-end`) | Month-End: CSV/OFX ingest, matching Rules 1–6, splits, reconciliation, approval gate | Month-End only |
+| `packages/contracts/` (`@happy/contracts`) | Contracts preset type and validation (engine comes in brief 05) | Contracts only |
 | `supabase/migrations/…_core.sql`, `…_storage.sql` | Organisations, memberships, roles, RLS helpers, append-only timeline, private documents bucket | Shared |
-| `supabase/migrations/…_month_end.sql`, `…_split_suggestions.sql` | presets, runs, documents, lines, matches, exceptions, journals, decisions, checklist | Month-End (the presets table is meant to be shared) |
+| `supabase/migrations/…_month_end.sql`, `…_split_suggestions.sql` | presets, runs, documents, lines, matches, exceptions, journals, decisions, checklist | Month-End (the presets table is shared) |
+| `supabase/migrations/…_contracts.sql` | agreements, agreement_files, parsed_pages, agreement_fields, key_dates, review_items, reminder_drafts; `orgs.offshore_processing_approved`; `timeline_events.agreement_id` | Contracts (the org flag is shared) |
 | `supabase/functions/_shared/http.ts` | Auth, role checks, JSON helpers for edge functions | Shared |
 | `supabase/functions/_shared/core.ts`, `month-end.ts` | The single place edge functions import package code from | Shared |
 | `app/src/supabase.ts`, `components/Modal.tsx`, `components/ui.tsx`, `pages/SignIn.tsx`, `styles.css` | App shell | Shared |
@@ -42,7 +44,6 @@ These are blocked in `.claude/settings.json` for the Read, Grep and Glob tools. 
 
 ```
 packages/documents   later: LlamaParse adapter, Claude extraction, quote check
-packages/contracts   later
 ```
 
 ## Boundaries

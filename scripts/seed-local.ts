@@ -1,5 +1,8 @@
 // Seeds the LOCAL stack with a sample organisation for trying the review screen:
-//   - "Marula Office Supplies (sample)" with the default Month-End preset
+//   - "Marula Office Supplies (sample)" with the default Month-End and Contracts presets, approved
+//     for offshore processing (it holds only synthetic sample data)
+//   - "Unapproved Org (sample)" with the Contracts preset and offshore processing left off, so the
+//     gate can be tested
 //   - a reviewer and an uploader (test users; passwords generated, written to .local/dev-users.json)
 //   - two matched runs: the demo brief's September month, and a messy synthetic July month
 //     (suggested matches, a split deposit, a duplicate, an old uncleared cheque)
@@ -15,6 +18,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { localKeys, noSession, root } from './local.ts';
 
 const ORG_NAME = 'Marula Office Supplies (sample)';
+const UNAPPROVED_ORG_NAME = 'Unapproved Org (sample)';
 const USERS = [
   { email: 'reviewer@marula.test', role: 'reviewer' },
   { email: 'uploader@marula.test', role: 'uploader' },
@@ -32,7 +36,7 @@ async function must<R extends { data: unknown; error: unknown }>(p: PromiseLike<
 }
 
 async function removeExisting() {
-  const orgs = await must(admin.from('orgs').select('id').eq('name', ORG_NAME), 'find org');
+  const orgs = await must(admin.from('orgs').select('id').in('name', [ORG_NAME, UNAPPROVED_ORG_NAME]), 'find org');
   for (const org of orgs) {
     const { data: docs } = await admin.from('documents').select('storage_path').eq('org_id', org.id);
     if (docs?.length) await admin.storage.from('documents').remove(docs.map((d) => d.storage_path));
@@ -101,7 +105,19 @@ async function main() {
   if (reset) console.log(`Removed ${await removeExisting()} existing sample organisation(s).`);
 
   const defaultPreset = readJson('presets', 'month-end.default.json');
-  const org = await must(admin.from('orgs').insert({ name: ORG_NAME }).select().single(), 'org');
+  const contractsPreset = readJson('presets', 'contracts.default.json');
+  // Approved for offshore processing: this organisation holds only synthetic sample data.
+  const org = await must(admin.from('orgs').insert({ name: ORG_NAME, offshore_processing_approved: true }).select().single(), 'org');
+  await must(
+    admin.from('presets').insert({ org_id: org.id, service: 'contracts', version: 1, config: contractsPreset }).select(),
+    'contracts preset',
+  );
+  // Left unapproved, so the offshore-processing gate can be tested against it.
+  const unapproved = await must(admin.from('orgs').insert({ name: UNAPPROVED_ORG_NAME }).select().single(), 'unapproved org');
+  await must(
+    admin.from('presets').insert({ org_id: unapproved.id, service: 'contracts', version: 1, config: contractsPreset }).select(),
+    'unapproved contracts preset',
+  );
   const preset = await must(
     admin.from('presets').insert({ org_id: org.id, service: 'month_end', version: 1, config: defaultPreset }).select().single(),
     'preset',

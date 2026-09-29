@@ -242,6 +242,101 @@ async function main() {
   check('reviewer confirms the split', !confirm.error, confirm.error);
   const ok2 = await call(reviewer, 'approve-run', run2.id);
   check('approved at R0.00 after confirming', ok2.status === 200 && ok2.body?.panel?.difference === 0, ok2);
+
+  await contracts(orgA.id, orgB.id, uploader, reviewer, outsider);
+}
+
+// Contracts tables: clients create agreements and attach files; pipeline output is written here with
+// the service role (the edge functions that write it come later). B must see none of A's rows.
+async function contracts(orgA: string, orgB: string, uploader: Person, reviewer: Person, outsider: Person) {
+  console.log('\nContracts tables (B against A)');
+  const cPreset = JSON.parse(readFileSync(join(root, 'presets', 'contracts.default.json'), 'utf8'));
+  const presetA = await must(
+    admin.from('presets').insert({ org_id: orgA, service: 'contracts', version: 1, config: cPreset }).select().single(),
+    'contracts preset A',
+  );
+  const agreement = await uploader.client
+    .from('agreements')
+    .insert({ org_id: orgA, preset_id: presetA.id, title: 'Accounting software subscription (sample)', created_by: uploader.id })
+    .select()
+    .single();
+  check('uploader creates an agreement', !agreement.error && agreement.data?.status === 'uploaded', agreement.error);
+  const agreementId: string = agreement.data!.id;
+
+  const path = `${orgA}/${agreementId}/c2-subscription.pdf`;
+  const pdf = readFileSync(join(root, 'eval', 'contracts', 'demo-marula', 'c2-subscription.pdf'));
+  const up = await uploader.client.storage.from('documents').upload(path, pdf, { contentType: 'application/pdf' });
+  created.paths.push(path);
+  check('uploader uploads the agreement PDF', !up.error, up.error);
+  const file = await uploader.client
+    .from('agreement_files')
+    .insert({ org_id: orgA, agreement_id: agreementId, ord: 1, role: 'main', storage_path: path, filename: 'c2-subscription.pdf', uploaded_by: uploader.id })
+    .select()
+    .single();
+  check('uploader attaches the file', !file.error, file.error);
+  const fileId: string = file.data!.id;
+
+  const pages = await uploader.client
+    .from('parsed_pages')
+    .insert({ org_id: orgA, file_id: fileId, page: 1, width: 595.9, height: 842.9, text: 'x' });
+  check('a client cannot write parsed pages', !!pages.error);
+
+  // Pipeline output, written with the service role.
+  await must(admin.from('parsed_pages').insert({ org_id: orgA, file_id: fileId, page: 1, width: 595.9, height: 842.9, text: 'Order form' }).select(), 'page');
+  await must(
+    admin.from('agreement_fields').insert({ org_id: orgA, agreement_id: agreementId, key: 'fee', values: [{ value: { cents: 485000 } }], status: 'recorded' }).select(),
+    'field',
+  );
+  await must(
+    admin.from('key_dates').insert({ org_id: orgA, agreement_id: agreementId, key: 'renewal', label: 'Renewal date', date: '2027-03-01' }).select(),
+    'key date',
+  );
+  await must(
+    admin.from('review_items').insert({ org_id: orgA, agreement_id: agreementId, kind: 'unclear', field_key: 'feeChange', summary: 'Fee change on renewal not quantified' }).select(),
+    'review item',
+  );
+  await must(admin.from('reminder_drafts').insert({ org_id: orgA, as_at: '2026-10-14', body: 'No contract dates.' }).select(), 'reminder draft');
+
+  const tables = ['agreements', 'agreement_files', 'parsed_pages', 'agreement_fields', 'key_dates', 'review_items', 'reminder_drafts'] as const;
+  for (const t of tables) {
+    const own = await reviewer.client.from(t).select('id').eq('org_id', orgA);
+    const other = await outsider.client.from(t).select('id').eq('org_id', orgA);
+    check(`A reads its ${t.replace('_', ' ')}; B sees none`, own.data?.length === 1 && !other.error && other.data?.length === 0, { own, other });
+  }
+
+  const bInsert = await outsider.client
+    .from('agreements')
+    .insert({ org_id: orgA, preset_id: presetA.id, title: 'x', created_by: outsider.id });
+  check('B cannot create an agreement in A', !!bInsert.error);
+  const bDelete = await outsider.client.from('agreements').delete().eq('id', agreementId).select();
+  check('B cannot delete A’s agreement', bDelete.data?.length === 0, bDelete);
+  const monthEndPreset = await must(admin.from('presets').select('id').eq('org_id', orgA).eq('service', 'month_end').single(), 'month-end preset');
+  const wrongPreset = await uploader.client
+    .from('agreements')
+    .insert({ org_id: orgA, preset_id: monthEndPreset.id, title: 'x', created_by: uploader.id });
+  check('an agreement needs a Contracts preset', !!wrongPreset.error);
+
+  await must(admin.from('agreements').update({ status: 'ready' }).eq('id', agreementId).select(), 'mark ready');
+  const lateFile = await uploader.client
+    .from('agreement_files')
+    .insert({ org_id: orgA, agreement_id: agreementId, ord: 2, role: 'addendum', storage_path: `${orgA}/${agreementId}/late.pdf`, filename: 'late.pdf', uploaded_by: uploader.id });
+  check('files cannot be attached after processing', !!lateFile.error);
+  const lateDelete = await uploader.client.from('agreements').delete().eq('id', agreementId).select();
+  check('a processed agreement cannot be deleted', lateDelete.data?.length === 0, lateDelete);
+
+  const event = await admin.from('timeline_events').insert({ org_id: orgA, agreement_id: agreementId, event: 'agreement_test' }).select();
+  check('timeline accepts an agreement event', !event.error, event.error);
+  const someRun = await must(admin.from('runs').select('id').eq('org_id', orgA).limit(1).single(), 'a run');
+  const both = await admin.from('timeline_events').insert({ org_id: orgA, run_id: someRun.id, agreement_id: agreementId, event: 'agreement_test' }).select();
+  check('a timeline event is about a run or an agreement, not both', !!both.error, both);
+
+  console.log('\nOffshore-processing gate');
+  const flag = await reviewer.client.from('orgs').update({ offshore_processing_approved: true }).eq('id', orgA).select();
+  const after = await must(admin.from('orgs').select('offshore_processing_approved').eq('id', orgA).single(), 'org');
+  check('a client cannot set offshore_processing_approved', (!!flag.error || flag.data?.length === 0) && after.offshore_processing_approved === false, flag);
+  const bFlag = await outsider.client.from('orgs').update({ offshore_processing_approved: true }).eq('id', orgB).select();
+  const bAfter = await must(admin.from('orgs').select('offshore_processing_approved').eq('id', orgB).single(), 'org B');
+  check('not even for its own organisation', (!!bFlag.error || bFlag.data?.length === 0) && bAfter.offshore_processing_approved === false, bFlag);
 }
 
 async function cleanup() {
