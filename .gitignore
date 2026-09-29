@@ -9,3 +9,8 @@ dist/
 eval/month-end/*
 !eval/month-end/demo-marula/
 !eval/month-end/synth-*/
+eval/contracts/*
+!eval/contracts/README.md
+!eval/contracts/demo-marula/
+!eval/contracts/scan-marula/
+!eval/contracts/render/

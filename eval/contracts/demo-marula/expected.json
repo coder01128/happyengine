@@ -1,0 +1,99 @@
+{
+  "asAt": "2026-10-14",
+  "alertWindows": { "attention": 30, "upcoming": 90 },
+  "agreements": {
+    "c1": {
+      "fields": {
+        "counterparty": { "value": "Oakridge Property Holdings (Pty) Ltd", "source": ["c1-1-1"] },
+        "startDate": { "value": "2024-02-01", "source": ["c1-def-comm"] },
+        "endDate": { "value": "2027-01-31", "source": ["c1-def-period"], "also": ["c1-4-1"] },
+        "termMonths": { "value": 36, "source": ["c1-4-1"] },
+        "renewal": { "value": { "kind": "option", "periodMonths": 36 }, "source": ["c1-18-1"] },
+        "notice": {
+          "value": { "amount": 3, "unit": "months", "before": "expiry" },
+          "source": ["c1-add-2"],
+          "supersedes": { "value": { "amount": 2, "unit": "months" }, "source": ["c1-18-2"] }
+        },
+        "fee": { "value": { "cents": 3200000, "per": "month", "vat": "excluded" }, "source": ["c1-sch2"] },
+        "feeChange": { "value": { "kind": "schedule", "steps": [2743500, 2963000, 3200000] }, "source": ["c1-sch2"], "also": ["c1-5-2"] },
+        "deposit": { "value": 6400000, "source": ["c1-6-1"] }
+      },
+      "flags": [],
+      "dates": [
+        { "key": "renewal_notice", "label": "Renewal notice deadline", "value": "2026-10-31", "derivation": "2027-01-31 − 3 months", "status": "needs_attention" },
+        { "key": "expiry", "label": "Lease expiry", "value": "2027-01-31", "derivation": "end date", "status": "later" }
+      ]
+    },
+    "c2": {
+      "fields": {
+        "counterparty": { "value": "Ledgerline Software (Pty) Ltd", "source": ["c2-of-1"] },
+        "startDate": { "value": "2026-03-01", "source": ["c2-of-start"] },
+        "termMonths": { "value": 12, "source": ["c2-of-term"] },
+        "endDate": { "value": "2027-02-28", "source": ["c2-of-term"], "derived": "start + 12 months − 1 day" },
+        "renewal": { "value": { "kind": "automatic", "periodMonths": 12 }, "source": ["c2-14-2"] },
+        "notice": { "value": { "amount": 60, "unit": "days", "before": "renewal" }, "source": ["c2-14-3"] },
+        "fee": { "value": { "cents": 485000, "per": "month", "vat": "excluded" }, "source": ["c2-of-fee"] },
+        "feeChange": { "value": { "kind": "unquantified" }, "source": ["c2-6-4"] }
+      },
+      "flags": [
+        { "kind": "unclear", "field": "feeChange", "about": "not quantified" }
+      ],
+      "dates": [
+        { "key": "cancellation_deadline", "label": "Cancellation deadline", "value": "2026-12-31", "derivation": "2027-03-01 − 60 days", "status": "upcoming" },
+        { "key": "renewal", "label": "Renewal date", "value": "2027-03-01", "derivation": "end date + 1 day", "status": "later" }
+      ]
+    },
+    "c3": {
+      "fields": {
+        "counterparty": { "value": "BrightSpan Cleaning Services CC", "source": ["c3-1-1"] },
+        "startDate": { "value": "2026-04-01", "source": ["c3-3-1"] },
+        "termMonths": { "value": 6, "source": ["c3-3-1"] },
+        "renewal": { "value": { "kind": "month_to_month" }, "source": ["c3-3-2"] },
+        "notice": {
+          "values": [
+            { "value": { "amount": 30, "unit": "days" }, "source": ["c3-9-1"] },
+            { "value": { "amount": 1, "unit": "months" }, "source": ["c3-s1-4"] }
+          ]
+        },
+        "fee": { "value": { "cents": 690000, "per": "month" }, "source": ["c3-s1-1"] }
+      },
+      "flags": [
+        { "kind": "conflict", "field": "notice", "about": "30 days vs one calendar month" }
+      ],
+      "dates": [
+        { "key": "notice", "label": "Notice deadline", "value": "pending_review", "derivation": "conflict", "status": null }
+      ]
+    },
+    "c4": {
+      "fields": {
+        "counterparty": { "value": "Sample Office Equipment Finance (Pty) Ltd", "source": ["c4-1-1"] },
+        "startDate": { "value": "2023-11-01", "source": ["c4-2-1"] },
+        "endDate": { "value": "2026-10-31", "source": ["c4-2-1"] },
+        "termMonths": { "value": 36, "source": ["c4-2-1"] },
+        "renewal": { "value": { "kind": "month_to_month" }, "source": ["c4-12-3"], "note": "if no notice given" },
+        "notice": { "value": { "amount": 3, "unit": "months", "before": "end_of_initial_period" }, "source": ["c4-12-2"] },
+        "fee": { "value": { "cents": 198000, "per": "month", "vat": "excluded" }, "source": ["c4-6-1"] },
+        "feeChange": { "value": { "kind": "percent_escalation", "percent": 10, "every": "anniversary" }, "source": ["c4-6-2"] }
+      },
+      "flags": [],
+      "dates": [
+        { "key": "termination_notice", "label": "Termination notice deadline", "value": "2026-07-31", "derivation": "2026-10-31 − 3 months", "status": "passed" },
+        { "key": "end_of_initial_period", "label": "End of initial period", "value": "2026-10-31", "derivation": "end date", "status": "needs_attention" }
+      ]
+    },
+    "c5": {
+      "fields": {
+        "counterparty": { "value": "Coastal Couriers (Pty) Ltd", "source": ["c5-1-1"] },
+        "startDate": { "value": "2025-06-01", "source": ["c5-2-1"] },
+        "termMonths": { "value": "blank", "source": ["c5-2-2"] },
+        "renewal": { "value": "not_stated", "source": ["c5-2-2"] },
+        "notice": { "value": "not_stated", "source": ["c5-9-1"] },
+        "fee": { "value": { "text": "Rates per Schedule A" }, "source": ["c5-sa"] }
+      },
+      "flags": [
+        { "kind": "blank", "field": "termMonths", "about": "blank in signed copy" }
+      ],
+      "dates": []
+    }
+  }
+}
