@@ -8,8 +8,10 @@ Behaviour and UI spec: `happyai/docs/happy-month-end-demo-brief.md` and `happyai
 
 | Path | What |
 | --- | --- |
-| `packages/engine/src/` | Pure TypeScript: money (integer cents), dates (UTC date-only), CSV/OFX ingest, matching Rules 1–6, reconciliation panel, review/approval gate |
-| `packages/engine/test/` | Unit tests. `marula.test.ts` is the demo brief's fixture and verified arithmetic; `rule5.test.ts` and `split.test.ts` cover suggestions |
+| `packages/core/src/` | `@happy/core`, shared by every service. Pure TypeScript: money (integer cents), dates (UTC date-only) |
+| `packages/core/test/` | Unit tests for money and dates |
+| `packages/month-end/src/` | `@happy/month-end`. Pure TypeScript: CSV/OFX ingest, matching Rules 1–6, reconciliation panel, review/approval gate. Imports core by relative path |
+| `packages/month-end/test/` | Unit tests. `marula.test.ts` is the demo brief's fixture and verified arithmetic; `rule5.test.ts` and `split.test.ts` cover suggestions |
 | `presets/month-end.default.json` | Default Month-End preset: column mappings, matching settings, journal labels, resolution options, close checklist |
 | `eval/month-end/<sample>/` | Test set: one folder per real month (see below) |
 | `eval/run.ts` | Runs every sample and prints plain numbers |

@@ -1,5 +1,5 @@
-import type { Cents } from './money.ts';
-import type { IsoDate } from './dates.ts';
+import type { Cents } from '../../core/src/index.ts';
+import type { IsoDate } from '../../core/src/index.ts';
 
 export type Side = 'bank' | 'ledger';
 

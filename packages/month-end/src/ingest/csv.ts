@@ -1,5 +1,5 @@
-import { parseDate } from '../dates.ts';
-import { parseAmount } from '../money.ts';
+import { parseDate } from '../../../core/src/index.ts';
+import { parseAmount } from '../../../core/src/index.ts';
 import type { ColumnMapping } from '../preset.ts';
 import type { Line, Side } from '../types.ts';
 

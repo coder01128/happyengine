@@ -1,4 +1,5 @@
-import { formatRand, type ExceptionType, type MatchException, type ResolutionEffect } from '@happy/engine';
+import { formatRand } from '@happy/core';
+import type { ExceptionType, MatchException, ResolutionEffect } from '@happy/month-end';
 
 /** Status is always colour plus a text label. */
 export const EXCEPTION_LABEL: Record<ExceptionType, { text: string; cls: string }> = {

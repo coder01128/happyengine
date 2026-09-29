@@ -7,8 +7,8 @@
 
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { formatRand } from '../packages/core/src/index.ts';
 import {
-  formatRand,
   linesFromCsv,
   linesFromOfx,
   reconcile,
@@ -17,7 +17,7 @@ import {
   type Line,
   type MonthEndPreset,
   type Side,
-} from '../packages/engine/src/index.ts';
+} from '../packages/month-end/src/index.ts';
 
 interface Sample {
   description?: string;

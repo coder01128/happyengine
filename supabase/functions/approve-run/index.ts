@@ -2,7 +2,7 @@
 // the difference is R0.00 and nothing is open, approves it. Approval never posts anything and
 // does not close the month: the rest of the close checklist stays as it is.
 
-import { approvalStatus, reconcile, stateFromRows, type MonthEndPreset, type RunRows } from '../_shared/engine.ts';
+import { approvalStatus, reconcile, stateFromRows, type MonthEndPreset, type RunRows } from '../_shared/month-end.ts';
 import { HttpError, handle, json, loadRun, readRunId, requireRole, requireUser } from '../_shared/http.ts';
 
 Deno.serve(

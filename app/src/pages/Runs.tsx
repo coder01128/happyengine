@@ -1,4 +1,4 @@
-import { formatDate, parseAmount } from '@happy/engine';
+import { formatDate, parseAmount } from '@happy/core';
 import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { go, type Membership } from '../App.tsx';
 import { Modal } from '../components/Modal.tsx';

@@ -12,7 +12,7 @@ import {
   type Line,
   type MonthEndPreset,
   type Side,
-} from '../_shared/engine.ts';
+} from '../_shared/month-end.ts';
 import { HttpError, handle, json, loadRun, readRunId, requireRole, requireUser } from '../_shared/http.ts';
 
 const LABEL: Record<Side, string> = { bank: 'Bank statement', ledger: 'Cash book export' };

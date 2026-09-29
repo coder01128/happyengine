@@ -1,7 +1,7 @@
 // Split deposits: one statement line that equals the sum of several cash book entries,
 // e.g. a customer paying two invoices in one transfer. Pure search helpers used by Rule 6.
 
-import type { Cents } from './money.ts';
+import type { Cents } from '../../core/src/index.ts';
 
 export interface SplitCandidate {
   id: string;

@@ -1,5 +1,5 @@
 import type { MatchResult } from './match.ts';
-import type { Cents } from './money.ts';
+import type { Cents } from '../../core/src/index.ts';
 import type { MonthEndPreset } from './preset.ts';
 import { chosenOption, isReviewed, type Decisions, type ReconPanel } from './reconcile.ts';
 import type { Line } from './types.ts';

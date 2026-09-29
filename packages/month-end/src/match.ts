@@ -1,5 +1,5 @@
-import { daysBetween, dayNumber, type IsoDate } from './dates.ts';
-import { formatRand, type Cents } from './money.ts';
+import { daysBetween, dayNumber, type IsoDate } from '../../core/src/index.ts';
+import { formatRand, type Cents } from '../../core/src/index.ts';
 import type { MonthEndPreset } from './preset.ts';
 import { compilePatterns, normaliseRef, referenceKey } from './refs.ts';
 import { chooseSplit, mentions, subsetsSummingTo } from './split.ts';

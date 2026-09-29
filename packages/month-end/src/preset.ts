@@ -1,4 +1,4 @@
-import type { DateFormat } from './dates.ts';
+import type { DateFormat } from '../../core/src/index.ts';
 
 /** How to read one CSV export. Column names are matched case-insensitively. */
 export interface ColumnMapping {

@@ -1,4 +1,5 @@
-import { formatDate, formatRand, optionsFor, type Line, type MatchException, type MonthEndPreset, type RunState } from '@happy/engine';
+import { formatDate, formatRand } from '@happy/core';
+import { optionsFor, type Line, type MatchException, type MonthEndPreset, type RunState } from '@happy/month-end';
 import { useEffect, useId, useRef, useState } from 'react';
 import { EXCEPTION_LABEL, effectText } from '../labels.ts';
 import { orThrow, supabase } from '../supabase.ts';

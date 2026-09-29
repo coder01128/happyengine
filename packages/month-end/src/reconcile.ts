@@ -1,5 +1,5 @@
 import type { MatchException, MatchResult } from './match.ts';
-import { formatRand, type Cents } from './money.ts';
+import { formatRand, type Cents } from '../../core/src/index.ts';
 import type { MonthEndPreset, ResolutionOption, ReviewedExceptionType } from './preset.ts';
 import type { Line } from './types.ts';
 

@@ -1,4 +1,4 @@
-import { formatRand } from '@happy/engine';
+import { formatRand } from '@happy/core';
 import { useId, useState } from 'react';
 import type { Membership } from '../App.tsx';
 import type { DocumentRow, RunRow } from '../pages/RunReview.tsx';

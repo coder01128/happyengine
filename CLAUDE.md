@@ -26,23 +26,21 @@ These are blocked in `.claude/settings.json` for the Read, Grep and Glob tools. 
 
 | Path | What | Shared? |
 | --- | --- | --- |
-| `packages/engine/src/money.ts`, `dates.ts` | Integer cents, `R12 450.00` formatting, UTC date-only arithmetic | Shared by every service |
-| `packages/engine/src/` (the rest) | Month-End: CSV/OFX ingest, matching Rules 1–6, splits, reconciliation, approval gate | Month-End only |
+| `packages/core/` (`@happy/core`) | Money and dates: integer cents, `R12 450.00` formatting, UTC date-only arithmetic | Shared by every service |
+| `packages/month-end/` (`@happy/month-end`) | Month-End: CSV/OFX ingest, matching Rules 1–6, splits, reconciliation, approval gate | Month-End only |
 | `supabase/migrations/…_core.sql`, `…_storage.sql` | Organisations, memberships, roles, RLS helpers, append-only timeline, private documents bucket | Shared |
 | `supabase/migrations/…_month_end.sql`, `…_split_suggestions.sql` | presets, runs, documents, lines, matches, exceptions, journals, decisions, checklist | Month-End (the presets table is meant to be shared) |
 | `supabase/functions/_shared/http.ts` | Auth, role checks, JSON helpers for edge functions | Shared |
-| `supabase/functions/_shared/engine.ts` | The single place edge functions import engine code from | Shared |
+| `supabase/functions/_shared/core.ts`, `month-end.ts` | The single place edge functions import package code from | Shared |
 | `app/src/supabase.ts`, `components/Modal.tsx`, `components/ui.tsx`, `pages/SignIn.tsx`, `styles.css` | App shell | Shared |
 | `app/src/` (the rest) | Month-End screens | Month-End only |
 | `eval/<service>/` | Test set per service. Real client data is git-ignored | Per service |
 
-**Planned layout.** See `docs/briefs/01-split-core.md`; update this table once that brief is done.
-
 **Happy Contracts** is built here, not in the separate `happycontracts` repo. Plan: `docs/contracts-plan.md`. Briefs: `docs/briefs/02`–`07`, one per session, in order. Never start a brief whose predecessors aren't merged.
 
+**Planned packages** (not built yet):
+
 ```
-packages/core        money, dates (shared)
-packages/month-end   everything Month-End
 packages/documents   later: LlamaParse adapter, Claude extraction, quote check
 packages/contracts   later
 ```
