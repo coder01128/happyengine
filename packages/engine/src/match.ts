@@ -1,7 +1,8 @@
 import { daysBetween, dayNumber, type IsoDate } from './dates.ts';
 import { formatRand, type Cents } from './money.ts';
 import type { MonthEndPreset } from './preset.ts';
-import { compilePatterns, referenceKey } from './refs.ts';
+import { compilePatterns, normaliseRef, referenceKey } from './refs.ts';
+import { chooseSplit, mentions, subsetsSummingTo } from './split.ts';
 import type { Line } from './types.ts';
 
 export interface MatchedPair {
@@ -13,6 +14,7 @@ export interface MatchedPair {
 
 export type ExceptionType =
   | 'suggested_match'
+  | 'suggested_split'
   | 'amount_difference'
   | 'possible_duplicate'
   | 'timing'
@@ -24,11 +26,13 @@ export interface MatchException {
   type: ExceptionType;
   bankId?: string;
   ledgerId?: string;
+  /** suggested_split: the cash book entries that together make up the statement line, in file order. */
+  ledgerIds?: string[];
   /** possible_duplicate: the entry it duplicates. */
   duplicateOf?: string;
   timingKind?: 'deposit_in_transit' | 'outstanding_payment';
   /**
-   * amount_difference: bank − ledger. not_in_ledger and suggested_match: bank amount.
+   * amount_difference: bank − ledger. not_in_ledger, suggested_match, suggested_split: bank amount.
    * Everything else: the ledger amount.
    */
   amount: Cents;
@@ -46,6 +50,9 @@ export interface MatchInput {
   preset: MonthEndPreset;
   periodEnd: IsoDate;
 }
+
+/** Only the closest candidates by date are searched, which keeps the combination search small. */
+const SPLIT_CANDIDATE_LIMIT = 20;
 
 interface Keyed {
   line: Line;
@@ -108,6 +115,54 @@ export function runMatching({ bank, ledger, preset, periodEnd }: MatchInput): Ma
       ),
     (b, l) => matched.push({ bankId: b.line.id, ledgerId: l.line.id, rule: 2 }),
   );
+
+  // Rule 6: one statement line equals the sum of 2..splitMaxParts cash book entries of the same
+  // sign within the suggestion window (a customer paying several invoices at once). Runs before
+  // Rule 3 so a split isn't mistaken for an amount difference. Suggested only, and only when
+  // exactly one combination fits. A single same-amount candidate is left for Rule 5.
+  {
+    const window = preset.matching.suggestionWindowDays;
+    const order = new Map(ledgerK.map((l, i) => [l.line.id, i]));
+    for (const b of openBank()) {
+      const amount = b.line.amount;
+      if (amount === 0) continue;
+      const days = (l: Keyed) => daysBetween(l.line.date, b.line.date);
+      const open = openLedger().filter((l) => days(l) <= window);
+      if (open.some((l) => l.line.amount === amount)) continue;
+      const text = normaliseRef(`${b.line.reference} ${b.line.description}`);
+      const candidates = open
+        .filter((l) => Math.sign(l.line.amount) === Math.sign(amount) && Math.abs(l.line.amount) < Math.abs(amount))
+        .sort((x, y) => days(x) - days(y) || order.get(x.line.id)! - order.get(y.line.id)!)
+        .slice(0, SPLIT_CANDIDATE_LIMIT)
+        .map((l) => ({
+          id: l.line.id,
+          amount: l.line.amount,
+          anchor: !!b.key && l.key === b.key,
+          mentioned: mentions(text, l.key),
+        }));
+      const chosen = chooseSplit(
+        subsetsSummingTo(candidates, amount, preset.matching.splitMaxParts),
+        candidates.some((c) => c.anchor),
+      );
+      if (!chosen) continue;
+      const parts = chosen
+        .map((c) => ledgerK.find((l) => l.line.id === c.id)!)
+        .sort((x, y) => order.get(x.line.id)! - order.get(y.line.id)!);
+      usedBank.add(b.line.id);
+      for (const p of parts) usedLedger.add(p.line.id);
+      const refs = parts.map((p) => p.line.reference || p.key || p.line.description).join(' + ');
+      const spread = Math.max(...parts.map(days));
+      const apart = spread === 0 ? 'same date' : `up to ${spread} day${spread === 1 ? '' : 's'} apart`;
+      exceptions.push({
+        id: nextId(),
+        type: 'suggested_split',
+        bankId: b.line.id,
+        ledgerIds: parts.map((p) => p.line.id),
+        amount,
+        reason: `Equals the sum of ${parts.length} cash book entries (${refs}), ${apart}.`,
+      });
+    }
+  }
 
   // Rule 3: same reference, different amount. Flagged, never matched.
   pass(

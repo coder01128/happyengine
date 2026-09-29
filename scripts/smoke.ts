@@ -206,6 +206,52 @@ async function main() {
   check('timeline cannot be edited, even with the service role', !!edit.error, edit);
   const del = await admin.from('timeline_events').delete().eq('run_id', run.id).select();
   check('timeline cannot be deleted row by row', !!del.error, del);
+
+  console.log('\nSplit suggestion (one deposit paying two invoices)');
+  const run2 = await must(
+    uploader.client
+      .from('runs')
+      .insert({
+        org_id: orgA.id,
+        label: 'Split test — Aug 2026 (sample)',
+        period_end: '2026-08-31',
+        opening_bank: 0,
+        opening_ledger: 0,
+        preset_id: presetA.id,
+        created_by: uploader.id,
+      })
+      .select()
+      .single(),
+    'create split run',
+  );
+  const files = {
+    bank: 'Date,Description,Reference,Amount\n12/08/2026,IB PAYMENT FROM KGOSI LOGISTICS INV4012 4013,,18350.50\n',
+    ledger:
+      'Date,Reference,Description,Receipts,Payments\n' +
+      '10/08/2026,INV-4012,Receipt — Kgosi Logistics,12000.00,\n' +
+      '10/08/2026,INV-4013,Receipt — Kgosi Logistics,6350.50,\n',
+  };
+  for (const side of ['bank', 'ledger'] as const) {
+    const path = `${orgA.id}/${run2.id}/${side}.csv`;
+    await uploader.client.storage.from('documents').upload(path, files[side], { contentType: 'text/csv' });
+    created.paths.push(path);
+    await uploader.client
+      .from('documents')
+      .insert({ org_id: orgA.id, run_id: run2.id, side, storage_path: path, filename: `${side}.csv`, uploaded_by: uploader.id });
+  }
+  const m2 = await call(uploader, 'run-matching', run2.id);
+  check('matching suggests one split and nothing else', JSON.stringify(m2.body?.exceptions) === '{"suggested_split":1}', m2);
+  const parts = await reviewer.client.from('exception_parts').select('line_id').eq('run_id', run2.id);
+  check('both cash book entries stored as parts of the split', parts.data?.length === 2, parts);
+  const bParts = await outsider.client.from('exception_parts').select('line_id').eq('run_id', run2.id);
+  check('B cannot see A’s split parts', bParts.data?.length === 0, bParts);
+  const blocked2 = await call(reviewer, 'approve-run', run2.id);
+  check('approval refused until the split is decided', blocked2.body?.error === '1 item still open: 1 suggested match.', blocked2);
+  const split = await must(reviewer.client.from('exceptions').select('id').eq('run_id', run2.id).single(), 'split');
+  const confirm = await reviewer.client.rpc('record_decision', { p_exception_id: split.id, p_option_id: 'confirm' });
+  check('reviewer confirms the split', !confirm.error, confirm.error);
+  const ok2 = await call(reviewer, 'approve-run', run2.id);
+  check('approved at R0.00 after confirming', ok2.status === 200 && ok2.body?.panel?.difference === 0, ok2);
 }
 
 async function cleanup() {

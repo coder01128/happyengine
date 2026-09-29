@@ -34,7 +34,7 @@ export interface ApprovalStatus {
   canApprove: boolean;
   openJournals: number;
   openDifferences: number;
-  /** Rule 5 suggestions not yet confirmed or rejected. */
+  /** Rule 5 and Rule 6 suggestions not yet confirmed or rejected. */
   openSuggestions: number;
   message: string;
 }
@@ -63,7 +63,7 @@ export function approvalStatus(args: {
     if (!option) return true;
     return option.noteRequired && !d?.note?.trim();
   });
-  const openSuggestions = undecided.filter((e) => e.type === 'suggested_match').length;
+  const openSuggestions = undecided.filter((e) => e.type === 'suggested_match' || e.type === 'suggested_split').length;
   const openDifferences = undecided.length - openSuggestions;
 
   const open = openJournals + openDifferences + openSuggestions;

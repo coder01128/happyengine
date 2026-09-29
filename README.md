@@ -8,8 +8,8 @@ Behaviour and UI spec: `happyai/docs/happy-month-end-demo-brief.md` and `happyai
 
 | Path | What |
 | --- | --- |
-| `packages/engine/src/` | Pure TypeScript: money (integer cents), dates (UTC date-only), CSV/OFX ingest, matching Rules 1–5, reconciliation panel, review/approval gate |
-| `packages/engine/test/` | Unit tests. `marula.test.ts` is the demo brief's fixture and verified arithmetic; `rule5.test.ts` covers suggestions |
+| `packages/engine/src/` | Pure TypeScript: money (integer cents), dates (UTC date-only), CSV/OFX ingest, matching Rules 1–6, reconciliation panel, review/approval gate |
+| `packages/engine/test/` | Unit tests. `marula.test.ts` is the demo brief's fixture and verified arithmetic; `rule5.test.ts` and `split.test.ts` cover suggestions |
 | `presets/month-end.default.json` | Default Month-End preset: column mappings, matching settings, journal labels, resolution options, close checklist |
 | `eval/month-end/<sample>/` | Test set: one folder per real month (see below) |
 | `eval/run.ts` | Runs every sample and prints plain numbers |
@@ -66,8 +66,9 @@ Organisations, presets and memberships are created by happyai (service role) dur
 | 3 | Same reference, different amount | Flagged: amount difference |
 | 4 | Unmatched cash book entry with the same reference, amount and date as another | Flagged: possible duplicate |
 | 5 | Same amount, dates within `suggestionWindowDays` (7), exactly one candidate each way; references missing or different | **Suggested only**: a person confirms or rejects. Rejecting needs a note and leaves the difference open |
+| 6 | One statement line equals the sum of 2–`splitMaxParts` (4) cash book entries of the same sign within the suggestion window, and exactly one combination fits (a referenced entry must be part of it; ties go to the combination whose invoice numbers appear in the narrative) | **Suggested only**, as a split: confirm or reject as for Rule 5. Runs after Rule 2 and before Rule 3 |
 
-Anything left is a timing item (cash book entry within `timingWindowDays` of period end), not in the cash book (bank line → proposed journal), or not on the statement (older cash book entry → review). Known gap: one deposit settling several invoices is not matched yet.
+Anything left is a timing item (cash book entry within `timingWindowDays` of period end), not in the cash book (bank line → proposed journal), or not on the statement (older cash book entry → review). Passes run in this order: 1, 2, 6, 3, 4, 5, so an exact rule always gets first claim on a line.
 
 ## Commands (Windows, from `C:\ccode\git-repos\happyengine`)
 
@@ -79,7 +80,7 @@ Installs dev tools. Ends with `found 0 vulnerabilities`.
 ```
 npm test
 ```
-Runs the unit tests. Ends with `Tests  60 passed (60)`.
+Runs the unit tests. Ends with `Tests  74 passed (74)`.
 
 ```
 npm run eval

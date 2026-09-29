@@ -39,7 +39,13 @@ export interface ReconPanel {
   difference: Cents;
 }
 
-const REVIEWED = new Set<string>(['amount_difference', 'possible_duplicate', 'not_on_statement', 'suggested_match']);
+const REVIEWED = new Set<string>([
+  'amount_difference',
+  'possible_duplicate',
+  'not_on_statement',
+  'suggested_match',
+  'suggested_split',
+]);
 
 export function isReviewed(e: MatchException): e is MatchException & { type: ReviewedExceptionType } {
   return REVIEWED.has(e.type);

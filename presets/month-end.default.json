@@ -22,7 +22,8 @@
     "dateToleranceDays": 3,
     "referencePatterns": ["\\bINV[- ]?\\d+\\b"],
     "timingWindowDays": 5,
-    "suggestionWindowDays": 7
+    "suggestionWindowDays": 7,
+    "splitMaxParts": 4
   },
   "journals": [
     { "match": "\\b(service fees?|bank charges?|FEES)\\b", "label": "Bank service fees" },
@@ -42,6 +43,10 @@
     ],
     "suggested_match": [
       { "id": "confirm", "label": "Confirm match — same transaction", "effect": "confirm_match", "noteRequired": false },
+      { "id": "reject", "label": "Not a match — investigate", "effect": "reject_match", "noteRequired": true }
+    ],
+    "suggested_split": [
+      { "id": "confirm", "label": "Confirm — paid together in one transaction", "effect": "confirm_match", "noteRequired": false },
       { "id": "reject", "label": "Not a match — investigate", "effect": "reject_match", "noteRequired": true }
     ],
     "not_on_statement": [

@@ -38,7 +38,12 @@ export interface ResolutionOption {
   noteRequired: boolean;
 }
 
-export type ReviewedExceptionType = 'amount_difference' | 'possible_duplicate' | 'not_on_statement' | 'suggested_match';
+export type ReviewedExceptionType =
+  | 'amount_difference'
+  | 'possible_duplicate'
+  | 'not_on_statement'
+  | 'suggested_match'
+  | 'suggested_split';
 
 export interface ChecklistItem {
   id: string;
@@ -62,6 +67,8 @@ export interface MonthEndPreset {
     timingWindowDays: number;
     /** Rule 5: same amount, dates within this many days, one candidate each way → suggested for a person to confirm. */
     suggestionWindowDays: number;
+    /** Rule 6: most cash book entries one statement line may be split across (2–6). */
+    splitMaxParts: number;
   };
   /** Proposed journal label for a bank line not in the cash book: first regex on the description wins. */
   journals: { match: string; label: string }[];
@@ -78,7 +85,14 @@ const EFFECTS: ResolutionEffect[] = [
   'confirm_match',
   'reject_match',
 ];
-const REVIEWED: ReviewedExceptionType[] = ['amount_difference', 'possible_duplicate', 'not_on_statement', 'suggested_match'];
+const REVIEWED: ReviewedExceptionType[] = [
+  'amount_difference',
+  'possible_duplicate',
+  'not_on_statement',
+  'suggested_match',
+  'suggested_split',
+];
+const SUGGESTED: ReviewedExceptionType[] = ['suggested_match', 'suggested_split'];
 const MATCH_EFFECTS: ResolutionEffect[] = ['confirm_match', 'reject_match'];
 
 /** Presets are hand-edited JSON rows, so check them before use. Returns a list of problems (empty = valid). */
@@ -107,16 +121,19 @@ export function validatePreset(p: MonthEndPreset): string[] {
     for (const o of options) {
       if (!EFFECTS.includes(o.effect)) problems.push(`resolutions.${type}.${o.id}: unknown effect "${o.effect}"`);
       if (o.effect === 'none' && !o.noteRequired) problems.push(`resolutions.${type}.${o.id}: "none" must require a note`);
-      if ((type === 'suggested_match') !== MATCH_EFFECTS.includes(o.effect)) {
+      if (SUGGESTED.includes(type) !== MATCH_EFFECTS.includes(o.effect)) {
         problems.push(`resolutions.${type}.${o.id}: "${o.effect}" can't be used here`);
       }
     }
-    if (type === 'suggested_match' && !options.some((o) => o.effect === 'confirm_match')) {
-      problems.push('resolutions.suggested_match: needs a "confirm_match" option');
+    if (SUGGESTED.includes(type) && !options.some((o) => o.effect === 'confirm_match')) {
+      problems.push(`resolutions.${type}: needs a "confirm_match" option`);
     }
   }
-  const { dateToleranceDays, timingWindowDays, suggestionWindowDays } = p.matching;
+  const { dateToleranceDays, timingWindowDays, suggestionWindowDays, splitMaxParts } = p.matching;
   if (!(suggestionWindowDays >= 0)) problems.push('matching.suggestionWindowDays: missing');
+  if (!(Number.isInteger(splitMaxParts) && splitMaxParts >= 2 && splitMaxParts <= 6)) {
+    problems.push('matching.splitMaxParts: must be a whole number from 2 to 6');
+  }
   if (dateToleranceDays < 0 || timingWindowDays < 0) {
     problems.push('matching: day windows must be 0 or more');
   }

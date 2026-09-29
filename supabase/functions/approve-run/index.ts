@@ -27,10 +27,11 @@ Deno.serve(
       if (error) throw error;
       return data as unknown as Record<string, any>[];
     };
-    const [lineRows, matchRows, excRows, journalRows, decisionRows] = await Promise.all([
+    const [lineRows, matchRows, excRows, partRows, journalRows, decisionRows] = await Promise.all([
       q('lines'),
       q('matches'),
       q('exceptions'),
+      q('exception_parts'),
       q('journals'),
       q('decisions'),
     ]);
@@ -46,6 +47,9 @@ Deno.serve(
       amount: Number(l.amount),
     });
     const byExt = (a: Line, b: Line) => Number(a.id.slice(1)) - Number(b.id.slice(1));
+    const extOrder = (a: string, b: string) => Number(a.slice(1)) - Number(b.slice(1));
+    const partsOf = (exceptionId: string) =>
+      partRows.filter((p) => p.exception_id === exceptionId).map((p) => ext.get(p.line_id)!).sort(extOrder);
     const bank = lineRows.filter((l) => l.side === 'bank').map(toLine).sort(byExt);
     const ledger = lineRows.filter((l) => l.side === 'ledger').map(toLine).sort(byExt);
 
@@ -57,6 +61,7 @@ Deno.serve(
           type: e.type,
           bankId: e.bank_line_id ? ext.get(e.bank_line_id) : undefined,
           ledgerId: e.ledger_line_id ? ext.get(e.ledger_line_id) : undefined,
+          ledgerIds: e.type === 'suggested_split' ? partsOf(e.id) : undefined,
           duplicateOf: e.duplicate_of_line_id ? ext.get(e.duplicate_of_line_id) : undefined,
           timingKind: e.timing_kind ?? undefined,
           amount: Number(e.amount),

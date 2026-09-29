@@ -4,6 +4,7 @@ export * from './types.ts';
 export * from './preset.ts';
 export * from './refs.ts';
 export * from './match.ts';
+export * from './split.ts';
 export * from './reconcile.ts';
 export * from './review.ts';
 export * from './ingest/csv.ts';

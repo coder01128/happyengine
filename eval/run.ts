@@ -123,8 +123,15 @@ for (const name of samples) {
 
   const truePairs = new Set(expected.matched.map(([b, l]) => pairKey(b, l)));
   const auto = new Set(result.matched.map((m) => pairKey(m.bankId, m.ledgerId)));
+  // A suggested split counts as one suggested pair per part.
   const suggested = new Set(
-    result.exceptions.filter((e) => e.type === 'suggested_match').map((e) => pairKey(e.bankId, e.ledgerId)),
+    result.exceptions.flatMap((e) =>
+      e.type === 'suggested_match'
+        ? [pairKey(e.bankId, e.ledgerId)]
+        : e.type === 'suggested_split'
+          ? (e.ledgerIds ?? []).map((l) => pairKey(e.bankId, l))
+          : [],
+    ),
   );
   const how = (k: string) => (auto.has(k) ? 'auto' : suggested.has(k) ? 'suggested' : 'missed');
   const missedPairs = [...truePairs].filter((k) => how(k) === 'missed');
@@ -134,7 +141,7 @@ for (const name of samples) {
   const trueExc = new Set(expected.exceptions.map(excKey));
   const producedExc = new Set(
     result.exceptions
-      .filter((x) => x.type !== 'suggested_match')
+      .filter((x) => x.type !== 'suggested_match' && x.type !== 'suggested_split')
       .map((x) => excKey({ type: x.type, bank: x.bankId, ledger: x.ledgerId })),
   );
   const missedExc = [...trueExc].filter((k) => !producedExc.has(k));
