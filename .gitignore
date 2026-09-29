@@ -1,0 +1,8 @@
+node_modules/
+.env
+.env.*
+!.env.example
+# Real client samples never go in git; only synthetic samples are committed.
+eval/month-end/*
+!eval/month-end/demo-marula/
+!eval/month-end/synth-*/

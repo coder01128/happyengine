@@ -1,0 +1,252 @@
+{
+  "matched": [
+    [
+      "s23",
+      "l25",
+      "embedded_ref"
+    ],
+    [
+      "s26",
+      "l29",
+      "embedded_ref"
+    ],
+    [
+      "s15",
+      "l13",
+      "embedded_ref"
+    ],
+    [
+      "s4",
+      "l8",
+      "embedded_ref"
+    ],
+    [
+      "s11",
+      "l14",
+      "no_ref"
+    ],
+    [
+      "s31",
+      "l34",
+      "embedded_ref"
+    ],
+    [
+      "s12",
+      "l9",
+      "embedded_ref"
+    ],
+    [
+      "s18",
+      "l15",
+      "embedded_ref"
+    ],
+    [
+      "s22",
+      "l24",
+      "embedded_ref"
+    ],
+    [
+      "s19",
+      "l21",
+      "typo_ref"
+    ],
+    [
+      "s36",
+      "l39",
+      "no_ref"
+    ],
+    [
+      "s39",
+      "l42",
+      "embedded_ref"
+    ],
+    [
+      "s32",
+      "l35",
+      "no_ref"
+    ],
+    [
+      "s30",
+      "l33",
+      "embedded_ref"
+    ],
+    [
+      "s16",
+      "l18",
+      "embedded_ref"
+    ],
+    [
+      "s1",
+      "l1",
+      "typo_ref"
+    ],
+    [
+      "s20",
+      "l23",
+      "typo_ref"
+    ],
+    [
+      "s29",
+      "l26",
+      "typo_ref"
+    ],
+    [
+      "s8",
+      "l6",
+      "split"
+    ],
+    [
+      "s8",
+      "l7",
+      "split"
+    ],
+    [
+      "s41",
+      "l43",
+      "embedded_ref"
+    ],
+    [
+      "s27",
+      "l30",
+      "embedded_ref"
+    ],
+    [
+      "s34",
+      "l37",
+      "embedded_ref"
+    ],
+    [
+      "s9",
+      "l11",
+      "embedded_ref"
+    ],
+    [
+      "s13",
+      "l16",
+      "embedded_ref"
+    ],
+    [
+      "s24",
+      "l27",
+      "embedded_ref"
+    ],
+    [
+      "s28",
+      "l32",
+      "embedded_ref"
+    ],
+    [
+      "s14",
+      "l17",
+      "embedded_ref"
+    ],
+    [
+      "s25",
+      "l28",
+      "embedded_ref"
+    ],
+    [
+      "s38",
+      "l41",
+      "embedded_ref"
+    ],
+    [
+      "s17",
+      "l19",
+      "embedded_ref"
+    ],
+    [
+      "s35",
+      "l38",
+      "embedded_ref"
+    ],
+    [
+      "s42",
+      "l46",
+      "embedded_ref"
+    ],
+    [
+      "s2",
+      "l2",
+      "debit_order"
+    ],
+    [
+      "s6",
+      "l3",
+      "debit_order"
+    ],
+    [
+      "s3",
+      "l4",
+      "debit_order"
+    ],
+    [
+      "s7",
+      "l5",
+      "debit_order"
+    ],
+    [
+      "s10",
+      "l12",
+      "card"
+    ],
+    [
+      "s33",
+      "l36",
+      "card"
+    ],
+    [
+      "s21",
+      "l22",
+      "card"
+    ],
+    [
+      "s37",
+      "l40",
+      "embedded_ref"
+    ]
+  ],
+  "exceptions": [
+    {
+      "type": "timing",
+      "ledger": "l44"
+    },
+    {
+      "type": "amount_difference",
+      "bank": "s5",
+      "ledger": "l10"
+    },
+    {
+      "type": "not_in_ledger",
+      "bank": "s40"
+    },
+    {
+      "type": "possible_duplicate",
+      "ledger": "l31"
+    },
+    {
+      "type": "timing",
+      "ledger": "l45"
+    },
+    {
+      "type": "not_on_statement",
+      "ledger": "l20"
+    },
+    {
+      "type": "not_in_ledger",
+      "bank": "s43"
+    },
+    {
+      "type": "not_in_ledger",
+      "bank": "s44"
+    },
+    {
+      "type": "not_in_ledger",
+      "bank": "s45"
+    },
+    {
+      "type": "not_in_ledger",
+      "bank": "s46"
+    }
+  ]
+}

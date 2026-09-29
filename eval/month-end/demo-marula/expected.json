@@ -1,0 +1,22 @@
+{
+  "matched": [
+    ["s1", "l1"],
+    ["s2", "l2"],
+    ["s3", "l3"],
+    ["s5", "l5"],
+    ["s6", "l6"],
+    ["s7", "l7"],
+    ["s8", "l9"],
+    ["s9", "l10"],
+    ["s10", "l11"]
+  ],
+  "exceptions": [
+    { "type": "amount_difference", "bank": "s4", "ledger": "l4" },
+    { "type": "possible_duplicate", "ledger": "l8" },
+    { "type": "timing", "ledger": "l12" },
+    { "type": "timing", "ledger": "l13" },
+    { "type": "not_in_ledger", "bank": "s11" },
+    { "type": "not_in_ledger", "bank": "s12" }
+  ],
+  "difference": -922275
+}

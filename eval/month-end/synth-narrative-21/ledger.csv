@@ -1,0 +1,43 @@
+Accounting system export (sample),Cash book,Bank
+Date,Reference,Description,Receipts,Payments
+01/07/2026,INS-07,Business insurance — Jul,,1796.00
+02/07/2026,CARD-0702-8,Card — corner cafe,,1572.00
+03/07/2026,CARD-0703-2,Fuel,,113.02
+04/07/2026,RENT-07,Office rent — Jul,,34009.00
+04/07/2026,TEL-07,Telephone and internet — Jul,,1837.81
+04/07/2026,SW-07,Accounting software — Jul,,726.90
+04/07/2026,CARD-0704-3,Card — hardware city,,702.08
+05/07/2026,PMT-6856,Payment — Acacia Cleaning,,11270.00
+07/07/2026,INV-4304,Receipt — Blouberg Physio,3030.13,
+07/07/2026,INV-4313,Receipt — Vaal Engineering,26317.00,
+08/07/2026,INV-4299,Receipt — Karoo Veterinary,37315.49,
+08/07/2026,INV-4305,Receipt — Umhlanga Dental,40702.00,
+10/07/2026,PMT-6851,Payment — Highveld Packaging,,18798.15
+11/07/2026,INV-4298,Receipt — Kgosi Logistics,16299.00,
+11/07/2026,PMT-6857,Payment — Highveld Packaging,,34842.84
+13/07/2026,INV-4303,Receipt — Thaba Hardware,5916.00,
+13/07/2026,INV-4306,Receipt — Mosaic Interiors,37230.00,
+13/07/2026,CARD-0713-4,Card — corner cafe,,1045.00
+14/07/2026,INV-4301,Receipt — Protea Catering,15050.00,
+14/07/2026,PMT-6849,Payment — Acacia Cleaning,,18332.00
+14/07/2026,PMT-6849,Payment — Acacia Cleaning,,18332.00
+14/07/2026,PMT-6852,Payment — Paper Mill Supplies,,49259.00
+15/07/2026,INV-4309,Receipt — Blouberg Physio,26611.00,
+15/07/2026,INV-4311,Receipt — Umhlanga Dental,27264.00,
+18/07/2026,INV-4307,Receipt — Mosaic Interiors,12359.17,
+21/07/2026,INV-4300,Receipt — Sediba Schools,36497.00,
+21/07/2026,INV-4310,Receipt — Sediba Schools,2712.00,
+21/07/2026,PMT-6858,Payment — Riverbend Printing,,26747.00
+21/07/2026,CARD-0721-6,Card — office depot,,1042.00
+23/07/2026,INV-4308,Receipt — Ntsika Builders,17150.00,
+23/07/2026,CARD-0723-5,Card — office depot,,576.93
+24/07/2026,PMT-6853,Payment — Inkjet Wholesale,,21751.00
+24/07/2026,PMT-6854,Payment — Riverbend Printing,,42323.72
+25/07/2026,INV-4312,Receipt — Vaal Engineering,33744.00,
+26/07/2026,CARD-0726-1,Card — office depot,,758.09
+26/07/2026,SAL-07,Salaries — JUL,,145683.00
+27/07/2026,CARD-0727-7,Card — corner cafe,,301.00
+28/07/2026,INV-4297,Receipt — Umhlanga Dental,18134.00,
+29/07/2026,INV-4302,Receipt — Mosaic Interiors,15177.00,
+30/07/2026,PMT-6855,Payment — Riverbend Printing,,45830.00
+31/07/2026,PMT-6850,Payment — Coastal Couriers,,4802.87

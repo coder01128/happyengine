@@ -1,0 +1,19 @@
+Sample Bank Ltd,Statement
+Account,Business current account •••• 4417
+Period,01/09/2026 to 30/09/2026
+Opening balance,184 250.00
+
+Date,Description,Reference,Amount,Balance
+01/09/2026,Deposit — Ndlovu Traders,INV-3104,18400.00,202650.00
+02/09/2026,Debit order — Office rent September,RENT-09,-32000.00,170650.00
+04/09/2026,EFT — Paper Mill Supplies,PMS-8812,-21736.40,148913.60
+08/09/2026,Deposit — Greenfield Schools,INV-3109,12450.00,161363.60
+11/09/2026,Card — Fuel,FUEL-0911,-1284.60,160079.00
+15/09/2026,Deposit — Ridgeway Clinics,INV-3112,27980.00,188059.00
+18/09/2026,EFT — Inkjet Wholesale,IW-4410,-9312.75,178746.25
+22/09/2026,Deposit — Ndlovu Traders,INV-3117,15600.00,194346.25
+25/09/2026,EFT — Salaries September,SAL-09,-68500.00,125846.25
+26/09/2026,Debit order — Telephone and internet,TEL-09,-2145.00,123701.25
+30/09/2026,Service fees,FEES,-186.50,123514.75
+30/09/2026,Interest received,INT,42.18,123556.93
+,Closing balance,,,123556.93

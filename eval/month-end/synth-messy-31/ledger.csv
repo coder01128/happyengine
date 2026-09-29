@@ -1,0 +1,46 @@
+Accounting system export (sample),Cash book,Bank
+Date,Reference,Description,Receipts,Payments
+01/07/2026,RENT-07,Office rent — Jul,,18853.67
+01/07/2026,INS-07,Business insurance — Jul,,3806.00
+01/07/2026,TEL-07,Telephone and internet — Jul,,935.00
+01/07/2026,SW-07,Accounting software — Jul,,560.00
+02/07/2026,INV-5035,Receipt — Kgosi Logistics,33388.11,
+03/07/2026,PMT-6811,Payment — Coastal Couriers,,2997.00
+03/07/2026,CHQ-979,Cheque — Paper Mill Supplies,,4358.00
+04/07/2026,PMT-6810,Payment — Riverbend Printing,,45974.19
+04/07/2026,CARD-0704-2,Card — office depot,,565.55
+05/07/2026,INV-5033,Receipt — Protea Catering,22567.00,
+05/07/2026,INV-5034,Receipt — Mosaic Interiors,15162.51,
+06/07/2026,INV-5036,Receipt — Vaal Engineering,25791.00,
+07/07/2026,INV-5024,Receipt — Vaal Engineering,17587.00,
+07/07/2026,INV-5030,Receipt — Sediba Schools,1794.00,
+07/07/2026,PMT-6807,Payment — Acacia Cleaning,,35123.45
+07/07/2026,CARD-0707-3,Card — office depot,,1704.01
+09/07/2026,INV-5023,Receipt — Mosaic Interiors,43375.00,
+09/07/2026,INV-5037,Receipt — Karoo Veterinary,7119.12,
+09/07/2026,INV-5038,Receipt — Karoo Veterinary,8186.00,
+09/07/2026,PMT-6813,Payment — Highveld Packaging,,57406.48
+10/07/2026,CARD-0710-6,Card — hardware city,,749.00
+11/07/2026,INV-5017,Receipt — Mosaic Interiors,3627.00,
+11/07/2026,CARD-0711-4,Fuel,,1518.00
+12/07/2026,CARD-0712-1,Card — office depot,,106.93
+13/07/2026,INV-5029,Receipt — Vaal Engineering,26304.00,
+14/07/2026,INV-5018,Receipt — Protea Catering,33266.00,
+16/07/2026,INV-5026,Receipt — Kgosi Logistics,27706.00,
+17/07/2026,PMT-6808,Payment — Paper Mill Supplies,,5870.53
+19/07/2026,INV-5028,Receipt — Ntsika Builders,17386.33,
+19/07/2026,INV-5032,Receipt — Thaba Hardware,2567.26,
+20/07/2026,INV-5031,Receipt — Karoo Veterinary,3974.66,
+20/07/2026,PMT-6805,Payment — Coastal Couriers,,18068.00
+20/07/2026,PMT-6805,Payment — Coastal Couriers,,18068.00
+21/07/2026,INV-5020,Receipt — Kgosi Logistics,32089.28,
+21/07/2026,PMT-6809,Payment — Coastal Couriers,,38237.00
+22/07/2026,PMT-6806,Payment — Acacia Cleaning,,19245.28
+22/07/2026,CARD-0722-5,Card — office depot,,903.00
+23/07/2026,PMT-6812,Payment — Paper Mill Supplies,,3363.00
+24/07/2026,INV-5019,Receipt — Umhlanga Dental,39768.00,
+25/07/2026,INV-5027,Receipt — Blouberg Physio,21712.00,
+26/07/2026,INV-5021,Receipt — Protea Catering,18188.07,
+26/07/2026,INV-5022,Receipt — Blouberg Physio,43873.00,
+26/07/2026,SAL-07,Salaries — JUL,,55257.00
+29/07/2026,INV-5025,Receipt — Kgosi Logistics,38003.00,

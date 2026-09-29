@@ -1,0 +1,5 @@
+{
+  "description": "Synthetic sample from the Month-End demo brief (Marula Office Supplies, Sep 2026). Not client data.",
+  "periodEnd": "2026-09-30",
+  "opening": { "bank": 18425000, "ledger": 18425000 }
+}

@@ -1,0 +1,15 @@
+Accounting system export (sample),Cash book,Bank
+Date,Reference,Description,Receipts,Payments
+01/09/2026,INV-3104,Receipt — Ndlovu Traders,18400.00,
+01/09/2026,RENT-09,Rent — September,,32000.00
+04/09/2026,PMS-8812,Payment — Paper Mill Supplies,,21736.40
+08/09/2026,INV-3109,Receipt — Greenfield Schools,12540.00,
+11/09/2026,FUEL-0911,Fuel,,1284.60
+15/09/2026,INV-3112,Receipt — Ridgeway Clinics,27980.00,
+18/09/2026,IW-4410,Payment — Inkjet Wholesale,,9312.75
+18/09/2026,IW-4410,Payment — Inkjet Wholesale,,9312.75
+19/09/2026,INV-3117,Receipt — Ndlovu Traders,15600.00,
+25/09/2026,SAL-09,Salaries — September,,68500.00
+26/09/2026,TEL-09,Telephone and internet,,2145.00
+29/09/2026,CC-219,Payment — Coastal Couriers,,4870.00
+30/09/2026,INV-3121,Receipt — Greenfield Schools,9250.00,

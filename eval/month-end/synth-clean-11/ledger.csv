@@ -1,0 +1,39 @@
+Accounting system export (sample),Cash book,Bank
+Date,Reference,Description,Receipts,Payments
+01/07/2026,PMT-5590,Payment — Summit IT Services,,56159.00
+01/07/2026,INS-07,Business insurance — Jul,,3517.13
+01/07/2026,TEL-07,Telephone and internet — Jul,,1212.00
+02/07/2026,PMT-5592,Payment — Highveld Packaging,,29879.80
+02/07/2026,RENT-07,Office rent — Jul,,26911.68
+03/07/2026,INV-4542,Receipt — Blouberg Physio,37183.03,
+03/07/2026,CARD-0703-1,Card — hardware city,,451.34
+05/07/2026,INV-4546,Receipt — Karoo Veterinary,16630.00,
+05/07/2026,SW-07,Accounting software — Jul,,1400.00
+07/07/2026,CARD-0707-3,Card — corner cafe,,1296.76
+09/07/2026,INV-4537,Receipt — Sediba Schools,31147.18,
+09/07/2026,PMT-5595,Payment — Highveld Packaging,,3793.46
+10/07/2026,INV-4539,Receipt — Blouberg Physio,36535.00,
+10/07/2026,INV-4540,Receipt — Thaba Hardware,33730.00,
+10/07/2026,INV-4549,Receipt — Protea Catering,23881.88,
+11/07/2026,PMT-5587,Payment — Paper Mill Supplies,,39098.00
+12/07/2026,INV-4547,Receipt — Sediba Schools,28628.37,
+12/07/2026,PMT-5589,Payment — Summit IT Services,,19443.55
+12/07/2026,PMT-5596,Payment — Summit IT Services,,25298.59
+13/07/2026,PMT-5594,Payment — Paper Mill Supplies,,10770.00
+14/07/2026,INV-4545,Receipt — Vaal Engineering,16852.73,
+15/07/2026,INV-4536,Receipt — Karoo Veterinary,27937.00,
+15/07/2026,INV-4551,Receipt — Kgosi Logistics,18992.00,
+16/07/2026,PMT-5588,Payment — Riverbend Printing,,5022.66
+16/07/2026,PMT-5588,Payment — Riverbend Printing,,5022.66
+17/07/2026,INV-4535,Receipt — Sediba Schools,27172.00,
+17/07/2026,INV-4550,Receipt — Kgosi Logistics,4969.00,
+17/07/2026,CARD-0717-2,Card — corner cafe,,1179.00
+18/07/2026,INV-4538,Receipt — Protea Catering,26839.60,
+18/07/2026,INV-4541,Receipt — Mosaic Interiors,16604.00,
+19/07/2026,INV-4548,Receipt — Sediba Schools,19373.00,
+20/07/2026,INV-4544,Receipt — Sediba Schools,3461.00,
+20/07/2026,PMT-5591,Payment — Summit IT Services,,34501.00
+23/07/2026,INV-4543,Receipt — Karoo Veterinary,13264.00,
+26/07/2026,PMT-5593,Payment — Acacia Cleaning,,37078.00
+28/07/2026,SAL-07,Salaries — JUL,,72589.62
+31/07/2026,PMT-5586,Payment — Paper Mill Supplies,,39383.00

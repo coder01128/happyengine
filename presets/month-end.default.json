@@ -1,0 +1,62 @@
+{
+  "service": "Happy Month-End",
+  "version": 1,
+  "sources": {
+    "bank": {
+      "dateFormat": "DD/MM/YYYY",
+      "date": "Date",
+      "description": "Description",
+      "reference": "Reference",
+      "amount": "Amount"
+    },
+    "ledger": {
+      "dateFormat": "DD/MM/YYYY",
+      "date": "Date",
+      "description": "Description",
+      "reference": "Reference",
+      "inflow": "Receipts",
+      "outflow": "Payments"
+    }
+  },
+  "matching": {
+    "dateToleranceDays": 3,
+    "referencePatterns": ["\\bINV[- ]?\\d+\\b"],
+    "timingWindowDays": 5,
+    "suggestionWindowDays": 7
+  },
+  "journals": [
+    { "match": "\\b(service fees?|bank charges?|FEES)\\b", "label": "Bank service fees" },
+    { "match": "\\b(interest|INT)\\b", "label": "Interest received" }
+  ],
+  "journalFallbackLabel": "Unrecorded bank item — confirm account",
+  "resolutions": {
+    "amount_difference": [
+      { "id": "short_paid", "label": "Customer short-paid — request balance of {difference}", "effect": "adjust_ledger_to_bank", "noteRequired": false },
+      { "id": "capture_error", "label": "Ledger capture error — correct receipt to {bankAmount}", "effect": "adjust_ledger_to_bank", "noteRequired": false },
+      { "id": "other", "label": "Other — add a note", "effect": "none", "noteRequired": true }
+    ],
+    "possible_duplicate": [
+      { "id": "confirmed", "label": "Confirmed duplicate — reverse second entry", "effect": "reverse_ledger_entry", "noteRequired": false },
+      { "id": "not_duplicate", "label": "Not a duplicate — second payment still to clear", "effect": "treat_as_outstanding", "noteRequired": false },
+      { "id": "other", "label": "Other — add a note", "effect": "none", "noteRequired": true }
+    ],
+    "suggested_match": [
+      { "id": "confirm", "label": "Confirm match — same transaction", "effect": "confirm_match", "noteRequired": false },
+      { "id": "reject", "label": "Not a match — investigate", "effect": "reject_match", "noteRequired": true }
+    ],
+    "not_on_statement": [
+      { "id": "carry", "label": "Still to clear — carry as outstanding", "effect": "treat_as_outstanding", "noteRequired": true },
+      { "id": "reverse", "label": "Ledger error — reverse entry", "effect": "reverse_ledger_entry", "noteRequired": false },
+      { "id": "other", "label": "Other — add a note", "effect": "none", "noteRequired": true }
+    ]
+  },
+  "checklist": [
+    { "id": "bank_rec", "task": "Bank reconciliation — current account", "owner": "Bookkeeper", "due": "Working day 2", "completedBy": "bank_reconciliation" },
+    { "id": "petty_cash", "task": "Petty cash count and top-up", "owner": "Bookkeeper", "due": "Working day 1" },
+    { "id": "payroll", "task": "Payroll journal posted", "owner": "Payroll", "due": "Working day 1" },
+    { "id": "suppliers", "task": "Supplier statement reconciliations (top 5)", "owner": "Bookkeeper", "due": "Working day 3" },
+    { "id": "debtors", "task": "Debtors age analysis reviewed", "owner": "Financial manager", "due": "Working day 3" },
+    { "id": "accruals", "task": "Accruals and prepayments posted", "owner": "Financial manager", "due": "Working day 4" },
+    { "id": "mgmt_pack", "task": "Management pack prepared", "owner": "Financial manager", "due": "Working day 5" }
+  ]
+}
