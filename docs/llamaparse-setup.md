@@ -57,6 +57,22 @@ This file is git-ignored, so the keys never reach GitHub.
 
 `PARSER` and `EXTRACTOR` stay on `fixture` for normal development. Switch them to `llamaparse` and `claude` only for a live test on the synthetic samples.
 
+## 4b. Put the LlamaParse key in Supabase (for the deployed functions)
+
+The deployed edge functions read the key from Supabase, not from your `.env` file. LlamaParse keys only work in the region they were made in, so this must be the key from the **EU** site (section 2).
+
+1. In your browser, open your Supabase project, then **Edge Functions**, then **Secrets** (in some layouts: Project Settings → Edge Functions).
+2. Add two secrets: `LLAMA_CLOUD_API_KEY` (the key) and `LLAMA_CLOUD_BASE_URL` with the value `https://api.cloud.eu.llamaindex.ai`.
+3. Add a third, `PARSER`, with the value `llamaparse`, only when you want the deployed functions to use LlamaParse. Without it they use the saved test parses. An organisation still needs `offshore_processing_approved` set by happyai before its files are sent.
+4. Check the names were saved. In the terminal:
+   ```
+   cd C:\ccode\git-repos\happyengine
+   ```
+   ```
+   supabase secrets list
+   ```
+   You should see a table with a NAME column listing `LLAMA_CLOUD_API_KEY` and `LLAMA_CLOUD_BASE_URL`, each with a long DIGEST string beside it. The digest is a fingerprint; the key itself is never shown. If it says the project isn't linked, tell Claude.
+
 ## 5. First live test (synthetic documents only)
 
 After brief 04 is merged, in the same terminal:

@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "app",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "app"],
+      "port": 5173
+    },
+    {
+      "name": "highlight-test",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["scripts/serve-dev.ts"],
+      "port": 5174
+    }
+  ]
+}

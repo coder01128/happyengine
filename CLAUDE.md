@@ -28,11 +28,14 @@ These are blocked in `.claude/settings.json` for the Read, Grep and Glob tools. 
 | --- | --- | --- |
 | `packages/core/` (`@happy/core`) | Money and dates: integer cents, `R12 450.00` formatting, UTC date-only arithmetic (days, calendar months), today in Johannesburg | Shared by every service |
 | `packages/month-end/` (`@happy/month-end`) | Month-End: CSV/OFX ingest, matching Rules 1–6, splits, reconciliation, approval gate | Month-End only |
-| `packages/contracts/` (`@happy/contracts`) | Contracts engine: preset, extraction schema and instructions, `buildRecord` (grounding, amendments, rules, key dates), `applyDecisions`, register, preset searches, reminder draft | Contracts only |
-| `packages/documents/` (`@happy/documents`) | Parser adapters (fixture, LlamaParse; local PDF.js at `src/parsers/pdfjs.ts`, Node only), Claude extractor, quote check (grounding), offshore guard | Shared by document services |
+| `packages/contracts/` (`@happy/contracts`) | Contracts engine: preset, extraction schema and instructions, `buildRecord` (grounding, amendments, rules, key dates), `applyDecisions`, register, preset searches, reminder draft; `parse-flow.ts` (the parse steps of `contracts-process`) and `adapters.ts` (parser choice and the offshore gate) | Contracts only |
+| `packages/documents/` (`@happy/documents`) | Parser adapters (fixture, LlamaParse; local PDF.js at `src/parsers/pdfjs.ts`, Node only), Claude extractor, quote check (grounding), page fractions (`positions.ts`), offshore guard | Shared by document services |
+| `eval/fixtures/` | The coordinate test: `coords.pdf` (portrait, landscape, /Rotate 90, picture-only), its known word positions, saved parses | Shared |
+| `dev/`, `scripts/serve-dev.ts` | Developer test pages, served locally (`highlight-test.html`) | Dev only |
 | `supabase/migrations/…_core.sql`, `…_storage.sql` | Organisations, memberships, roles, RLS helpers, append-only timeline, private documents bucket | Shared |
 | `supabase/migrations/…_month_end.sql`, `…_split_suggestions.sql` | presets, runs, documents, lines, matches, exceptions, journals, decisions, checklist | Month-End (the presets table is shared) |
 | `supabase/migrations/…_contracts.sql` | agreements, agreement_files, parsed_pages, agreement_fields, key_dates, review_items, reminder_drafts; `orgs.offshore_processing_approved`; `timeline_events.agreement_id` | Contracts (the org flag is shared) |
+| `supabase/migrations/…_parse_positions.sql` | Parse bookkeeping, originals kept as uploaded (no client overwrite or delete), private `parse-artifacts` bucket, the `contracts_*` parse-step functions | Contracts |
 | `supabase/functions/_shared/http.ts` | Auth, role checks, JSON helpers for edge functions | Shared |
 | `supabase/functions/_shared/core.ts`, `month-end.ts` | The single place edge functions import package code from | Shared |
 | `app/src/supabase.ts`, `components/Modal.tsx`, `components/ui.tsx`, `pages/SignIn.tsx`, `styles.css` | App shell | Shared |
@@ -48,6 +51,13 @@ These are blocked in `.claude/settings.json` for the Read, Grep and Glob tools. 
 - A service package never imports another service package. Services share code only through `core` and `documents`.
 - Inside `packages/`, import other packages by **relative path to their `src/index.ts`**, not by package name. The Supabase edge runtime (Deno) doesn't resolve npm workspace names.
 - Edge functions import engine code only through files in `supabase/functions/_shared/`.
+
+## How to work
+
+- **Stay in planning until Brad says build.** When a prompt says STOP, stop and wait for his go-ahead. After a discovery report, write no code until he approves it.
+- **Replicate what's here.** Job handling, table and column naming, RLS policies, edge function structure, model and env var names: copy the existing pattern. Never invent a parallel one. The migrations are the single source of truth for schema; `supabase/functions/.env.example` is the source of truth for env var names.
+- **Never print a key or secret.** Don't run a command whose output contains one: `supabase start` and `supabase status` print the local keys (send their output to a file or `> nul`), and never echo, print or log an env var, `.env` contents or a request header. `supabase secrets list` shows names and digests only, which is fine.
+- **Only made-up documents go through LlamaParse or Claude.** A sample is allowed offshore only if its `sample.json` says `"synthetic": true`; scripts and the eval refuse otherwise. Real client documents wait for the POPIA gates (next section).
 
 ## Non-negotiable rules
 
@@ -73,6 +83,7 @@ These are blocked in `.claude/settings.json` for the Read, Grep and Glob tools. 
 | `npm run typecheck` | Prints nothing |
 | `npm run eval` | Same TOTAL line as before the change |
 | `npm run smoke` | `All checks passed`. Needs `supabase start` and `supabase functions serve` running |
+| `node scripts/check-coords.ts --parser pdfjs` | `TOTAL 24/24 words within 1% of page size` |
 
 A change that lowers eval accuracy does not ship.
 

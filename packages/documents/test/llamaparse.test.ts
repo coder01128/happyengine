@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { createLlamaParseParser, ground, LLAMA_EU_BASE_URL, OffshoreNotApproved, ParserError, type LlamaParser } from '../src/index.ts';
+import { createLlamaParseParser, creditsFromUsage, ground, LLAMA_EU_BASE_URL, OffshoreNotApproved, ParserError, type LlamaParser } from '../src/index.ts';
 
 // Saved sample response (see _note in the JSON): the poll result and its grounded_items sidecar.
 const fixtures = join(import.meta.dirname, 'fixtures');
@@ -51,7 +51,7 @@ describe('llamaparse adapter', () => {
   it('reports a job that is still running as pending', async () => {
     const m = mockFetch([json({ job: { id: 'job-123', status: 'RUNNING' } })]);
     expect(await make(m.fn).fetchResult('job-123')).toBe('pending');
-    expect(m.calls[0]!.url).toBe(`${LLAMA_EU_BASE_URL}/api/v2/parse/job-123?expand=items`);
+    expect(m.calls[0]!.url).toBe(`${LLAMA_EU_BASE_URL}/api/v2/parse/job-123?expand=items,metadata,usage`);
   });
 
   it('maps the grounded result: page text, word offsets, page size, credits', async () => {
@@ -118,7 +118,77 @@ describe('llamaparse adapter', () => {
   it('uses LLAMA_CLOUD_BASE_URL when given', async () => {
     const m = mockFetch([json({ job: { id: 'j', status: 'RUNNING' } })]);
     await make(m.fn, { baseUrl: 'https://eu.example/' }).fetchResult('j');
-    expect(m.calls[0]!.url).toBe('https://eu.example/api/v2/parse/j?expand=items');
+    expect(m.calls[0]!.url).toBe('https://eu.example/api/v2/parse/j?expand=items,metadata,usage');
+  });
+});
+
+describe('llamaparse adapter: positions, unreadable pages, version and usage', () => {
+  const page = (n: number, extra: object = {}) => ({
+    page_number: n,
+    page_width: 842,
+    page_height: 595,
+    success: true,
+    items: [{ type: 'text', md: 'Alpha Bravo', grounding: { lines: [{ span: [0, 11], bbox: { x: 10, y: 20, w: 100, h: 12 }, words: [
+      { span: [0, 5], bbox: { x: 10, y: 20, w: 40, h: 12, r: 90 } },
+      { span: [6, 11], bbox: { x: 60, y: 20, w: 50, h: 12 } },
+    ] }] } }],
+    ...extra,
+  });
+
+  it('keeps r exactly as given and numbers the lines', async () => {
+    const m = mockFetch([json({ job: { id: 'j', status: 'COMPLETED' }, items: { pages: [page(1)] } })]);
+    const doc = await make(m.fn).fetchResult('j');
+    if (doc === 'pending') throw new Error('pending');
+    const [a, b] = doc.pages[0]!.words;
+    expect(a).toMatchObject({ text: 'Alpha', line: 0, box: { x: 10, y: 20, w: 40, h: 12, r: 90 } });
+    expect(b!.box).toEqual({ x: 60, y: 20, w: 50, h: 12 }); // no r: upright, nothing added
+    expect(doc.pages[0]).toMatchObject({ width: 842, height: 595 }); // page size as given, /Rotate already in it
+  });
+
+  it('keeps an unreadable page, flagged, and the readable pages around it', async () => {
+    const bad = { page_number: 2, success: false, error: 'page render failed' };
+    const m = mockFetch([json({ job: { id: 'j', status: 'COMPLETED' }, items: { pages: [page(3), bad, page(1)] } })]);
+    const doc = await make(m.fn).fetchResult('j');
+    if (doc === 'pending') throw new Error('pending');
+    expect(doc.pages.map((p) => p.page)).toEqual([1, 2, 3]);
+    expect(doc.pages[1]).toEqual({ page: 2, width: 842, height: 595, text: '', words: [], positionsOk: false, positionsError: 'page render failed' });
+    expect(doc.pages[0]!.positionsOk).toBeUndefined();
+  });
+
+  it('fails when no page could be read', async () => {
+    const m = mockFetch([json({ job: { id: 'j', status: 'COMPLETED' }, items: { pages: [{ page_number: 1, success: false, error: 'corrupt' }] } })]);
+    await expect(make(m.fn).fetchResult('j')).rejects.toThrow(/could not read any page: corrupt/);
+  });
+
+  it('returns the raw sidecar text, the version it resolved to and the credits used', async () => {
+    const job = { ...JSON.parse(jobJson), metadata: { version: '2026-01-08' }, usage: { credits_used: 6 } };
+    const m = mockFetch([json(job), new Response(sidecar)]);
+    const r = await make(m.fn).fetchWithRaw('job-123');
+    if (r === 'pending') throw new Error('pending');
+    expect(r.sidecar).toBe(sidecar);
+    expect(r.document.version).toBe('2026-01-08');
+    expect(r.creditsUsed).toBe(6);
+  });
+
+  it('leaves version and credits unknown when the job does not say', async () => {
+    const m = mockFetch([json(JSON.parse(jobJson)), new Response(sidecar)]);
+    const r = await make(m.fn).fetchWithRaw('job-123');
+    if (r === 'pending') throw new Error('pending');
+    expect(r.document.version).toBeUndefined();
+    expect(r.creditsUsed).toBeUndefined();
+  });
+
+  it('repeats with items only when the account rejects the extra expand values', async () => {
+    const m = mockFetch([json({ detail: 'invalid expand' }, 422), json({ job: { id: 'j', status: 'RUNNING' } })]);
+    expect(await make(m.fn).fetchResult('j')).toBe('pending');
+    expect(m.calls.map((c) => c.url.split('expand=')[1])).toEqual(['items,metadata,usage', 'items']);
+  });
+
+  it('reads credits from usage as a number or a credits field, and nothing else', () => {
+    expect(creditsFromUsage(12)).toBe(12);
+    expect(creditsFromUsage({ total_credits: 3, pages: 1 })).toBe(3);
+    expect(creditsFromUsage({ pages: 1 })).toBeUndefined();
+    expect(creditsFromUsage(undefined)).toBeUndefined();
   });
 });
 

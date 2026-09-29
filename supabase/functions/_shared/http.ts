@@ -53,8 +53,8 @@ export async function requireUser(req: Request): Promise<{ user: User; admin: Su
   return { user: data.user, admin };
 }
 
-/** Non-members get 404 (a run in another organisation doesn't exist for them); wrong role gets 403. */
-export async function requireRole(admin: SupabaseClient, orgId: string, userId: string, roles: string[]) {
+/** Non-members get 404 (a run or agreement in another organisation doesn't exist for them); wrong role gets 403. */
+export async function requireRole(admin: SupabaseClient, orgId: string, userId: string, roles: string[], subject = 'Run') {
   const { data, error } = await admin
     .from('memberships')
     .select('role')
@@ -62,7 +62,7 @@ export async function requireRole(admin: SupabaseClient, orgId: string, userId: 
     .eq('user_id', userId)
     .maybeSingle();
   if (error) throw error;
-  if (!data) throw new HttpError(404, 'Run not found');
+  if (!data) throw new HttpError(404, `${subject} not found`);
   if (!roles.includes(data.role)) throw new HttpError(403, `Needs one of: ${roles.join(', ')}`);
 }
 
@@ -71,6 +71,21 @@ export async function readRunId(req: Request): Promise<string> {
   const runId = body?.runId;
   if (typeof runId !== 'string' || !/^[0-9a-f-]{36}$/i.test(runId)) throw new HttpError(400, 'runId (uuid) required');
   return runId;
+}
+
+/** The request's JSON body, and its `field` as a uuid. */
+export async function readIdField(req: Request, field: string): Promise<{ id: string; body: Record<string, unknown> }> {
+  const body = await req.json().catch(() => null);
+  const id = body?.[field];
+  if (typeof id !== 'string' || !/^[0-9a-f-]{36}$/i.test(id)) throw new HttpError(400, `${field} (uuid) required`);
+  return { id, body };
+}
+
+export async function loadAgreement(admin: SupabaseClient, agreementId: string) {
+  const { data, error } = await admin.from('agreements').select('*').eq('id', agreementId).maybeSingle();
+  if (error) throw error;
+  if (!data) throw new HttpError(404, 'Agreement not found');
+  return data;
 }
 
 export async function loadRun(admin: SupabaseClient, runId: string) {

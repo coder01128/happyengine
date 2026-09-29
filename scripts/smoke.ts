@@ -46,14 +46,15 @@ async function person(label: string, orgId: string, role: 'uploader' | 'reviewer
   return { id: user.id, client, token: session.access_token };
 }
 
-async function call(p: Person, fn: string, runId: string) {
+async function callWith(p: Person, fn: string, payload: Record<string, unknown>) {
   const res = await fetch(`${url}/functions/v1/${fn}`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${p.token}`, apikey: anon, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ runId }),
+    body: JSON.stringify(payload),
   });
   return { status: res.status, body: (await res.json().catch(() => null)) as any };
 }
+const call = (p: Person, fn: string, runId: string) => callWith(p, fn, { runId });
 
 async function main() {
   const preset = JSON.parse(readFileSync(join(root, 'presets', 'month-end.default.json'), 'utf8'));
@@ -244,6 +245,129 @@ async function main() {
   check('approved at R0.00 after confirming', ok2.status === 200 && ok2.body?.panel?.difference === 0, ok2);
 
   await contracts(orgA.id, orgB.id, uploader, reviewer, outsider);
+  await contractsParse(orgA.id, uploader, reviewer, outsider);
+  await originalsKept(orgA.id, run.id, uploader);
+}
+
+// Reading the pages: contracts-process with the fixture parser (PARSER unset), a saved parse of the demo
+// PDF in the private parse-artifacts bucket. Also: originals can't be replaced or removed, and the raw
+// parser output can't be reached by any client.
+async function contractsParse(orgA: string, uploader: Person, reviewer: Person, outsider: Person) {
+  console.log('\nContracts: reading the pages');
+  const cPreset = await must(admin.from('presets').select('id').eq('org_id', orgA).eq('service', 'contracts').single(), 'contracts preset');
+  const makeAgreement = async (title: string, filename: string, body: Buffer) => {
+    const a = await must(
+      uploader.client.from('agreements').insert({ org_id: orgA, preset_id: cPreset.id, title, created_by: uploader.id }).select().single(),
+      `agreement ${title}`,
+    );
+    const path = `${orgA}/${a.id}/${filename}`;
+    const up = await uploader.client.storage.from('documents').upload(path, body, { contentType: 'application/pdf' });
+    created.paths.push(path);
+    if (up.error) throw new Error(`upload ${filename}: ${up.error.message}`);
+    const f = await must(
+      uploader.client.from('agreement_files').insert({ org_id: orgA, agreement_id: a.id, ord: 1, role: 'main', storage_path: path, filename, uploaded_by: uploader.id }).select().single(),
+      `file ${filename}`,
+    );
+    return { id: a.id as string, path, fileId: f.id as string, filename };
+  };
+
+  const demo = join(root, 'eval', 'contracts', 'demo-marula');
+  const pdf = readFileSync(join(demo, 'c2-subscription.pdf'));
+  const parsed = readFileSync(join(demo, 'parsed', 'pdfjs-local', 'c2-subscription.json'));
+  const pageCount = JSON.parse(parsed.toString()).pageCount as number;
+  const c2 = await makeAgreement('Parse smoke — subscription (sample)', 'c2-subscription.pdf', pdf);
+  const fixturePath = `${orgA}/${c2.id}/_fixtures/c2-subscription.pdf.parsed.json`;
+  const put = await admin.storage.from('parse-artifacts').upload(fixturePath, parsed, { contentType: 'application/json' });
+  check('saved parse placed in the private bucket', !put.error, put.error);
+
+  const first = await callWith(uploader, 'contracts-process', { agreementId: c2.id });
+  check('first call sends the file: status parsing', first.status === 200 && first.body?.status === 'parsing', first);
+  const second = await callWith(uploader, 'contracts-process', { agreementId: c2.id });
+  check('second call stores the pages: status parsed', second.status === 200 && second.body?.status === 'parsed', second);
+  const again = await callWith(uploader, 'contracts-process', { agreementId: c2.id });
+  check('calling again after parsed changes nothing', again.body?.status === 'parsed', again);
+
+  const file = await must(reviewer.client.from('agreement_files').select('*').eq('id', c2.fileId).single(), 'file row');
+  check(
+    'file records parser, tier, page count and a 64-character fingerprint',
+    file.parse_status === 'parsed' && file.parser === 'fixture' && file.parser_tier === 'cost_effective' && file.page_count === pageCount && /^[0-9a-f]{64}$/.test(file.file_sha256 ?? ''),
+    file,
+  );
+  const pages = await must(reviewer.client.from('parsed_pages').select('page, width, height, positions_ok, words').eq('file_id', c2.fileId).order('page'), 'pages');
+  check(`${pageCount} pages stored, every one with positions`, pages.length === pageCount && pages.every((p) => p.positions_ok && (p.words as unknown[]).length > 0), pages.map((p) => [p.page, p.positions_ok]));
+  const ag = await must(reviewer.client.from('agreements').select('status, preset_snapshot').eq('id', c2.id).single(), 'agreement');
+  check('agreement is parsed and keeps the preset it was processed with', ag.status === 'parsed' && ag.preset_snapshot?.service === 'Happy Contracts', ag);
+  const events = await must(reviewer.client.from('timeline_events').select('event, detail').eq('agreement_id', c2.id).order('id'), 'timeline');
+  check('timeline: file received, sent to the parser, parsed', JSON.stringify(events.map((e) => e.event)) === JSON.stringify(['file_received', 'parse_submitted', 'parsed']), events.map((e) => e.event));
+  check('the parsed event says how many pages', events[2]?.detail?.pages === pageCount && events[2]?.detail?.unreadable_pages === 0, events[2]);
+
+  const bCall = await callWith(outsider, 'contracts-process', { agreementId: c2.id });
+  check('B calling contracts-process on A’s agreement gets 404', bCall.status === 404, bCall);
+
+  console.log('\nContracts: a parse that fails, and a retry');
+  const c5 = await makeAgreement('Parse smoke — no saved parse (sample)', 'c5-courier.pdf', readFileSync(join(demo, 'c5-courier.pdf')));
+  const f1 = await callWith(uploader, 'contracts-process', { agreementId: c5.id });
+  check('a file with no saved parse fails with a plain reason', f1.body?.status === 'failed' && /No recorded parse for c5-courier.pdf/.test(f1.body?.error ?? ''), f1);
+  const noRetry = await callWith(uploader, 'contracts-process', { agreementId: c5.id });
+  check('calling again without retry stays failed', noRetry.body?.status === 'failed', noRetry);
+  const retried = await callWith(uploader, 'contracts-process', { agreementId: c5.id, retry: true });
+  check('retry puts it back to uploaded', retried.body?.status === 'uploaded', retried);
+  const fp = await must(admin.from('agreement_files').select('file_sha256').eq('id', c5.fileId).single(), 'fingerprint');
+  check('the file’s fingerprint survives the retry', /^[0-9a-f]{64}$/.test(fp.file_sha256 ?? ''), fp);
+  const events5 = await must(admin.from('timeline_events').select('event').eq('agreement_id', c5.id).order('id'), 'timeline c5');
+  check('timeline records the failure and the retry', JSON.stringify(events5.map((e) => e.event)) === JSON.stringify(['file_received', 'processing_failed', 'processing_retried']), events5.map((e) => e.event));
+
+  console.log('\nContracts: originals are kept as uploaded');
+  const overwrite = await uploader.client.storage.from('documents').upload(c2.path, Buffer.from('not the original'), { contentType: 'application/pdf', upsert: true });
+  check('an uploader cannot overwrite an uploaded original', !!overwrite.error, overwrite);
+  const remove = await uploader.client.storage.from('documents').remove([c2.path]);
+  const still = await admin.storage.from('documents').download(c2.path);
+  check('an uploader cannot delete an uploaded original', !still.error && (remove.data?.length ?? 0) === 0, remove);
+  const reviewerRemove = await reviewer.client.storage.from('documents').remove([c2.path]);
+  const still2 = await admin.storage.from('documents').download(c2.path);
+  check('nor can a reviewer', !still2.error && (reviewerRemove.data?.length ?? 0) === 0, reviewerRemove);
+  const same = await admin.storage.from('documents').download(c2.path).then(async (r) => Buffer.from(await r.data!.arrayBuffer()));
+  check('the stored file is byte for byte the original', same.equals(pdf));
+  const repoint = await uploader.client.from('agreement_files').update({ storage_path: `${orgA}/${c2.id}/other.pdf` }).eq('id', c2.fileId).select();
+  check('a client cannot re-point a file row', !!repoint.error || repoint.data?.length === 0, repoint);
+  const rename = await admin.from('agreement_files').update({ filename: 'renamed.pdf' }).eq('id', c2.fileId).select();
+  check('nobody can rename or re-point an uploaded file, even the service role', !!rename.error, rename);
+  const rehash = await admin.from('agreement_files').update({ file_sha256: 'a'.repeat(64) }).eq('id', c2.fileId).select();
+  check('the fingerprint cannot be rewritten', !!rehash.error, rehash);
+  const delFile = await uploader.client.from('agreement_files').delete().eq('id', c2.fileId).select();
+  check('a client cannot delete a file row', !!delFile.error || delFile.data?.length === 0, delFile);
+  const delAgreement = await uploader.client.from('agreements').delete().eq('id', c5.id).select();
+  check('an agreement with a file cannot be deleted by a client, even one that failed', delAgreement.data?.length === 0, delAgreement);
+  const empty = await must(uploader.client.from('agreements').insert({ org_id: orgA, preset_id: cPreset.id, title: 'No files yet (sample)', created_by: uploader.id }).select().single(), 'empty agreement');
+  const delEmpty = await uploader.client.from('agreements').delete().eq('id', empty.id).select();
+  check('an agreement with no files yet can still be deleted', delEmpty.data?.length === 1, delEmpty);
+  const serverCols = await uploader.client
+    .from('agreement_files')
+    .insert({ org_id: orgA, agreement_id: c5.id, ord: 2, role: 'addendum', storage_path: `${orgA}/${c5.id}/x.pdf`, filename: 'x.pdf', uploaded_by: uploader.id, file_sha256: 'b'.repeat(64) });
+  check('a client cannot set server-side columns when attaching a file', !!serverCols.error, serverCols);
+
+  console.log('\nContracts: raw parser output is server-only');
+  const artifact = `${orgA}/${c2.id}/${c2.fileId}/grounding.jsonl`;
+  await must(admin.storage.from('parse-artifacts').upload(artifact, '{"page_number":1}\n', { contentType: 'application/x-ndjson', upsert: true }).then((r) => ({ data: r.data, error: r.error })), 'artifact');
+  const rd = await reviewer.client.storage.from('parse-artifacts').download(artifact);
+  check('a reviewer cannot read the parser’s raw output', !!rd.error, rd);
+  const wr = await uploader.client.storage.from('parse-artifacts').upload(`${orgA}/${c2.id}/${c2.fileId}/planted.jsonl`, 'x');
+  check('an uploader cannot write to the parser’s output bucket', !!wr.error, wr);
+  const fx = await uploader.client.storage.from('parse-artifacts').upload(`${orgA}/${c2.id}/_fixtures/planted.pdf.parsed.json`, '{}');
+  check('nor plant a saved parse', !!fx.error, fx);
+  const ls = await outsider.client.storage.from('parse-artifacts').list(`${orgA}/${c2.id}`);
+  check('B sees nothing there', !ls.error && (ls.data?.length ?? 0) === 0, ls);
+  await admin.storage.from('parse-artifacts').remove([artifact, fixturePath]);
+}
+
+// Month-End keeps its own rule: documents can be replaced until the run is approved.
+async function originalsKept(orgA: string, runId: string, uploader: Person) {
+  console.log('\nMonth-End files can still be replaced');
+  const path = `${orgA}/${runId}/replace-me.csv`;
+  const up = await uploader.client.storage.from('documents').upload(path, 'a', { contentType: 'text/csv' });
+  created.paths.push(path);
+  const rm = await uploader.client.storage.from('documents').remove([path]);
+  check('an uploader can still remove a Month-End file', !up.error && rm.data?.length === 1, [up.error, rm]);
 }
 
 // Contracts tables: clients create agreements and attach files; pipeline output is written here with

@@ -33,13 +33,18 @@ export interface LlamaParseConfig {
   retryDelayMs?: number;
 }
 
+/** A finished job: the mapped document, the raw JSONL sidecar exactly as LlamaParse sent it (so a file can be
+ *  re-grounded later without paying to parse again), and the credits the job reports using, when it says. */
+export interface LlamaFetched { document: ParsedDocument; sidecar?: string; creditsUsed?: number }
+
 export interface LlamaParser extends Parser {
   submit(file: Uint8Array, opts: { tier?: string; filename: string }): Promise<string>;
   fetchResult(jobId: string): Promise<ParsedDocument | 'pending'>;
+  fetchWithRaw(jobId: string): Promise<LlamaFetched | 'pending'>;
 }
 
 // ---- response shapes (only the fields used)
-interface LlamaBox { x: number; y: number; w: number; h: number }
+interface LlamaBox { x: number; y: number; w: number; h: number; r?: number }
 interface LlamaWord { span: [number, number]; bbox: LlamaBox }
 interface LlamaLine { span: [number, number]; bbox: LlamaBox; words?: LlamaWord[] | null }
 interface LlamaCell { span?: [number, number]; bbox?: LlamaBox[] | LlamaBox; lines?: LlamaLine[] | null }
@@ -56,7 +61,21 @@ export interface LlamaPage {
 interface LlamaJobResponse {
   job?: { id: string; status: string; tier?: string; error_message?: string | null };
   items?: { pages?: LlamaPage[] };
+  metadata?: { version?: string };
+  usage?: unknown;
   result_content_metadata?: { grounded_items?: { exists?: boolean; presigned_url?: string } };
+}
+
+/** The credits a job reports using: `usage` as a number, or the first numeric field with "credit" in its name.
+ *  The docs don't give the usage shape, so anything else is "unknown" rather than a guess. */
+export function creditsFromUsage(usage: unknown): number | undefined {
+  if (typeof usage === 'number' && Number.isFinite(usage)) return usage;
+  if (usage && typeof usage === 'object') {
+    for (const [k, v] of Object.entries(usage)) {
+      if (/credit/i.test(k) && typeof v === 'number' && Number.isFinite(v)) return v;
+    }
+  }
+  return undefined;
 }
 
 export function createLlamaParseParser(cfg: LlamaParseConfig): LlamaParser {
@@ -111,8 +130,23 @@ export function createLlamaParseParser(cfg: LlamaParseConfig): LlamaParser {
     return body.id;
   }
 
-  async function fetchResult(jobId: string): Promise<ParsedDocument | 'pending'> {
-    const res = await call(`${base}/api/v2/parse/${encodeURIComponent(jobId)}?expand=items`, { headers });
+  /**
+   * The job, with its items, metadata (the version 'latest' resolved to) and usage (credits). The docs list
+   * these expand values but not the response shape of the last two, so if this account's API rejects them
+   * (400/422) the call is repeated with items only, and version and credits are left unknown.
+   */
+  async function getJob(jobId: string): Promise<Response> {
+    const url = (expand: string) => `${base}/api/v2/parse/${encodeURIComponent(jobId)}?expand=${expand}`;
+    try {
+      return await call(url('items,metadata,usage'), { headers });
+    } catch (err) {
+      if (err instanceof ParserError && err.code === 'failed' && /returned (400|422)\b/.test(err.message)) return call(url('items'), { headers });
+      throw err;
+    }
+  }
+
+  async function fetchWithRaw(jobId: string): Promise<LlamaFetched | 'pending'> {
+    const res = await getJob(jobId);
     const body = (await res.json()) as LlamaJobResponse;
     const status = body.job?.status;
     if (status === 'PENDING' || status === 'RUNNING') return 'pending';
@@ -120,26 +154,40 @@ export function createLlamaParseParser(cfg: LlamaParseConfig): LlamaParser {
       throw new ParserError('failed', `LlamaParse job ${jobId} ${status?.toLowerCase() ?? 'returned no status'}${body.job?.error_message ? `: ${body.job.error_message}` : ''}`);
     }
     let pages = body.items?.pages ?? [];
+    let raw: string | undefined;
     const sidecar = body.result_content_metadata?.grounded_items;
     if (sidecar?.exists !== false && sidecar?.presigned_url) {
       // Presigned: no auth header. The URL expires, so fetch it now.
       const side = await call(sidecar.presigned_url, {});
-      pages = parseJsonl(await side.text());
+      raw = await side.text();
+      pages = parseJsonl(raw);
     }
     const tier = body.job?.tier;
     const parsed = mapLlamaPages(pages);
+    const creditsUsed = creditsFromUsage(body.usage);
     return {
-      parser: 'llamaparse',
-      tier,
-      pageCount: parsed.length,
-      pages: parsed,
-      creditsEstimate: tier && CREDITS_PER_PAGE[tier] ? parsed.length * CREDITS_PER_PAGE[tier] : undefined,
+      document: {
+        parser: 'llamaparse',
+        tier,
+        ...(body.metadata?.version ? { version: body.metadata.version } : {}),
+        pageCount: parsed.length,
+        pages: parsed,
+        creditsEstimate: tier && CREDITS_PER_PAGE[tier] ? parsed.length * CREDITS_PER_PAGE[tier] : undefined,
+      },
+      ...(raw === undefined ? {} : { sidecar: raw }),
+      ...(creditsUsed === undefined ? {} : { creditsUsed }),
     };
+  }
+
+  async function fetchResult(jobId: string): Promise<ParsedDocument | 'pending'> {
+    const r = await fetchWithRaw(jobId);
+    return r === 'pending' ? r : r.document;
   }
 
   return {
     submit,
     fetchResult,
+    fetchWithRaw,
     async parse(file, opts) {
       const jobId = await submit(file, opts);
       const deadline = Date.now() + (cfg.timeoutMs ?? 10 * 60_000);
@@ -160,29 +208,35 @@ export function parseJsonl(text: string): LlamaPage[] {
     .map((l) => JSON.parse(l) as LlamaPage);
 }
 
-const toBox = (b: LlamaBox): Box => ({ x: b.x, y: b.y, w: b.w, h: b.h });
+/** r is kept exactly as LlamaParse gives it. Never add the page's own rotation to it: page_width/page_height already include /Rotate. */
+const toBox = (b: LlamaBox): Box => (b.r ? { x: b.x, y: b.y, w: b.w, h: b.h, r: b.r } : { x: b.x, y: b.y, w: b.w, h: b.h });
+
+/** Numbers the visual lines of one page, in the order the parser lists them. */
+interface LineCounter { n: number }
 
 /** Words of a span of `md` with no word boxes of its own: each word gets its share of the span's box. */
-function spreadWords(md: string, span: [number, number], box: LlamaBox, offset: number): Word[] {
+function spreadWords(md: string, span: [number, number], box: LlamaBox, offset: number, line: number): Word[] {
   const text = md.slice(span[0], span[1]);
   const perChar = text.length ? box.w / text.length : 0;
   return [...text.matchAll(/\S+/g)].map((m) => ({
     text: m[0],
     start: offset + span[0] + m.index,
     end: offset + span[0] + m.index + m[0].length,
-    box: { x: box.x + perChar * m.index, y: box.y, w: perChar * m[0].length, h: box.h },
+    box: toBox({ x: box.x + perChar * m.index, y: box.y, w: perChar * m[0].length, h: box.h, r: box.r }),
+    line,
   }));
 }
 
-function lineWords(md: string, lines: LlamaLine[], offset: number): Word[] {
+function lineWords(md: string, lines: LlamaLine[], offset: number, counter: LineCounter): Word[] {
   const words: Word[] = [];
   for (const line of lines) {
+    const no = counter.n++;
     if (line.words?.length) {
       for (const w of line.words) {
-        words.push({ text: md.slice(w.span[0], w.span[1]), start: offset + w.span[0], end: offset + w.span[1], box: toBox(w.bbox) });
+        words.push({ text: md.slice(w.span[0], w.span[1]), start: offset + w.span[0], end: offset + w.span[1], box: toBox(w.bbox), line: no });
       }
     } else if (line.span && line.bbox) {
-      words.push(...spreadWords(md, line.span, line.bbox, offset));
+      words.push(...spreadWords(md, line.span, line.bbox, offset, no));
     }
   }
   return words;
@@ -194,38 +248,56 @@ function lineWords(md: string, lines: LlamaLine[], offset: number): Word[] {
  * ignores markdown characters.
  */
 export function mapLlamaPages(pages: LlamaPage[]): ParsedPage[] {
-  return pages
-    .slice()
-    .sort((a, b) => a.page_number - b.page_number)
-    .map((p) => {
-      if (p.success === false) throw new ParserError('failed', `LlamaParse could not read page ${p.page_number}: ${p.error ?? 'no reason given'}`);
-      if (!p.page_width || !p.page_height) throw new ParserError('bad_response', `LlamaParse page ${p.page_number} has no page_width/page_height`);
-      let text = '';
-      const words: Word[] = [];
-      for (const item of p.items ?? []) {
-        const md = item.md ?? '';
-        if (!md) continue;
-        if (text) text += '\n\n';
-        const offset = text.length;
-        text += md;
-        const g = item.grounding;
-        if (!g) continue;
-        if (g.lines) words.push(...lineWords(md, g.lines, offset));
-        for (const row of g.rows ?? []) {
-          for (const cell of row) {
-            if (!cell) continue;
-            if (cell.lines?.length) words.push(...lineWords(md, cell.lines, offset));
-            else if (cell.span && cell.bbox) {
-              const box = Array.isArray(cell.bbox) ? cell.bbox[0] : cell.bbox;
-              if (box) words.push(...spreadWords(md, cell.span, box, offset));
-            }
+  const sorted = pages.slice().sort((a, b) => a.page_number - b.page_number);
+  if (!sorted.length) throw new ParserError('bad_response', 'LlamaParse returned no pages');
+  if (sorted.every((p) => p.success === false)) {
+    throw new ParserError('failed', `LlamaParse could not read any page: ${sorted[0]!.error ?? 'no reason given'}`);
+  }
+  // A page that couldn't be read may not say how big it is; it borrows the first readable page's size.
+  const sized = sorted.find((p) => p.success !== false && p.page_width && p.page_height);
+  if (!sized) throw new ParserError('bad_response', 'LlamaParse pages have no page_width/page_height');
+
+  return sorted.map((p) => {
+    if (p.success === false) {
+      // One unreadable page must not lose the rest of the document: keep it, flagged, with no text or words.
+      return {
+        page: p.page_number,
+        width: p.page_width || sized.page_width!,
+        height: p.page_height || sized.page_height!,
+        text: '',
+        words: [],
+        positionsOk: false,
+        positionsError: p.error ?? 'no reason given',
+      };
+    }
+    if (!p.page_width || !p.page_height) throw new ParserError('bad_response', `LlamaParse page ${p.page_number} has no page_width/page_height`);
+    let text = '';
+    const words: Word[] = [];
+    const counter: LineCounter = { n: 0 };
+    for (const item of p.items ?? []) {
+      const md = item.md ?? '';
+      if (!md) continue;
+      if (text) text += '\n\n';
+      const offset = text.length;
+      text += md;
+      const g = item.grounding;
+      if (!g) continue;
+      if (g.lines) words.push(...lineWords(md, g.lines, offset, counter));
+      for (const row of g.rows ?? []) {
+        for (const cell of row) {
+          if (!cell) continue;
+          if (cell.lines?.length) words.push(...lineWords(md, cell.lines, offset, counter));
+          else if (cell.span && cell.bbox) {
+            const box = Array.isArray(cell.bbox) ? cell.bbox[0] : cell.bbox;
+            if (box) words.push(...spreadWords(md, cell.span, box, offset, counter.n++));
           }
         }
       }
-      if (text.trim() && !words.length) {
-        throw new ParserError('bad_response', `LlamaParse returned no word boxes for page ${p.page_number} (granular_bboxes missing?)`);
-      }
-      words.sort((a, b) => a.start - b.start);
-      return { page: p.page_number, width: p.page_width, height: p.page_height, text, words };
-    });
+    }
+    if (text.trim() && !words.length) {
+      throw new ParserError('bad_response', `LlamaParse returned no word boxes for page ${p.page_number} (granular_bboxes missing?)`);
+    }
+    words.sort((a, b) => a.start - b.start);
+    return { page: p.page_number, width: p.page_width, height: p.page_height, text, words };
+  });
 }

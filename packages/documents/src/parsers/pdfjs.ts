@@ -20,7 +20,13 @@ interface PdfTextItem {
   hasEOL: boolean;
 }
 
-export function createPdfjsParser(): Parser {
+export interface PdfjsOptions {
+  /** A page with almost no text: 'throw' (default) fails the parse with no_text_layer; 'keep' returns the page
+   *  flagged positionsOk: false with no text or words, so the other pages can still be read (used by the coordinate test). */
+  onEmptyPage?: 'throw' | 'keep';
+}
+
+export function createPdfjsParser(opts: PdfjsOptions = {}): Parser {
   return {
     async parse(file) {
       // PDF.js may detach the buffer it is given; pass a copy.
@@ -35,9 +41,10 @@ export function createPdfjsParser(): Parser {
           const items = content.items.flatMap((i) => ('str' in i ? [i as PdfTextItem] : []));
           const parsed = pageFromItems(n, viewport.width, viewport.height, items, (x, y) => viewport.convertToViewportPoint(x, y) as [number, number]);
           if (parsed.text.replace(/\s/g, '').length < MIN_PAGE_CHARS) {
-            throw new ParserError('no_text_layer', `Page ${n} has no text layer (it looks scanned). Use an OCR parser.`);
-          }
-          pages.push(parsed);
+            const message = `Page ${n} has no text layer (it looks scanned). Use an OCR parser.`;
+            if (opts.onEmptyPage !== 'keep') throw new ParserError('no_text_layer', message);
+            pages.push({ page: n, width: viewport.width, height: viewport.height, text: '', words: [], positionsOk: false, positionsError: message });
+          } else pages.push(parsed);
           page.cleanup();
         }
         return { parser: 'pdfjs', pageCount: doc.numPages, pages } satisfies ParsedDocument;

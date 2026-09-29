@@ -1,0 +1,4 @@
+{
+  "synthetic": true,
+  "note": "Made-up test pages (coords.pdf). Marks them as safe to send to LlamaParse; see scripts/parse-file.ts."
+}

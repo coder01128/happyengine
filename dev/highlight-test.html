@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Highlight position test</title>
+<style>
+  :root {
+    --bg: #f4f1ea; --ink: #15231d; --muted: #4a5750; --card: #ffffff; --line: #c9c4b6;
+    --found: #0b4f9e; --expected: #146c2e; --bad: #9b1c1c;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #14201a; --ink: #eef2ee; --muted: #b6c2ba; --card: #1d2b24; --line: #3c4d44; --found: #8ec0ff; --expected: #7fdc98; --bad: #ff9c9c; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 16px; background: var(--bg); color: var(--ink); font: 16px/1.5 system-ui, sans-serif; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  p, li { max-width: 70ch; }
+  .muted { color: var(--muted); font-size: 14px; }
+  .bar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin: 12px 0 20px; }
+  select, button { font: inherit; padding: 6px 10px; min-height: 36px; }
+  .key { display: flex; flex-wrap: wrap; gap: 16px; font-size: 14px; }
+  .key span::before { content: ""; display: inline-block; width: 22px; height: 12px; margin-right: 6px; vertical-align: -1px; border: 2px solid; }
+  .key .k-found::before { border-color: var(--found); background: color-mix(in srgb, var(--found) 25%, transparent); }
+  .key .k-exp::before { border: 2px dashed var(--expected); }
+  .page { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 12px; margin: 0 0 24px; max-width: 900px; }
+  .page h2 { font-size: 17px; margin: 0 0 4px; }
+  .verdict { font-size: 14px; font-weight: 600; margin: 0 0 8px; }
+  .verdict.bad { color: var(--bad); }
+  .sheet { position: relative; width: 100%; background: #fff; box-shadow: 0 0 0 1px var(--line); }
+  .sheet canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .box { position: absolute; }
+  .box.found { border: 2px solid var(--found); background: color-mix(in srgb, var(--found) 22%, transparent); }
+  .box.exp { border: 2px dashed var(--expected); }
+  .fail { border-radius: 8px; padding: 12px; border: 2px solid var(--bad); max-width: 70ch; }
+</style>
+</head>
+<body>
+<h1>Highlight position test</h1>
+<p class="muted">The test PDF with a box drawn round every word the parser found (solid blue) and round where that word really is (dashed green). Where the two sit on top of each other, the parser's positions are right. Boxes are drawn from 0–1 page fractions set as CSS percentages, exactly as the real viewer will do it.</p>
+
+<div class="bar">
+  <label>Parse to show
+    <select id="parse"></select>
+  </label>
+  <span class="key"><span class="k-found">Found by the parser</span><span class="k-exp">Really there</span></span>
+</div>
+<div id="out" role="region" aria-live="polite">Loading…</div>
+
+<script>
+// A tab that is not on screen never fires animation frames, and PDF.js waits for them. Let the page draw anyway.
+if (document.hidden) window.requestAnimationFrame = (cb) => setTimeout(() => cb(performance.now()), 16);
+</script>
+<script type="module">
+import * as pdfjsLib from '/vendor/pdfjs/pdf.mjs';
+pdfjsLib.GlobalWorkerOptions.workerSrc = '/vendor/pdfjs/pdf.worker.mjs';
+
+const PARSES = [
+  ['pdfjs-local', 'PDF.js (local, text layer only)'],
+  ['llamaparse-agentic', 'LlamaParse, agentic tier'],
+  ['llamaparse-cost_effective', 'LlamaParse, cost-effective tier'],
+];
+const sel = document.getElementById('parse');
+const out = document.getElementById('out');
+const want = new URLSearchParams(location.search).get('parse') ?? 'pdfjs-local';
+for (const [v, label] of PARSES) sel.add(new Option(label, v, false, v === want));
+sel.addEventListener('change', () => { location.search = '?parse=' + sel.value; });
+
+const key = (s) => s.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
+const frac = (b, w, h) => ({ x: b.x / w, y: b.y / h, w: b.w / w, h: b.h / h, r: b.r });
+const dev = (a, b) => Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y), Math.abs(a.w - b.w), Math.abs(a.h - b.h));
+
+function box(f, cls, title) {
+  const d = document.createElement('div');
+  d.className = 'box ' + cls;
+  d.style.cssText = `left:${f.x * 100}%;top:${f.y * 100}%;width:${f.w * 100}%;height:${f.h * 100}%;` + (f.r ? `transform:rotate(${f.r}deg);` : '');
+  if (title) d.title = title;
+  return d;
+}
+
+async function main() {
+  const expected = await (await fetch('/fixtures/coords.expected.json')).json();
+  const res = await fetch(`/fixtures/parsed/${want}/coords.json`);
+  if (!res.ok) {
+    out.innerHTML = '';
+    const p = document.createElement('p');
+    p.className = 'fail';
+    p.textContent = `There is no saved parse for "${want}" yet. Make one with: node scripts/check-coords.ts --parser ${want.startsWith('pdfjs') ? 'pdfjs' : 'llamaparse'}`;
+    out.append(p);
+    return;
+  }
+  const parsed = await res.json();
+  const bytes = new Uint8Array(await (await fetch('/fixtures/coords.pdf')).arrayBuffer());
+  const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
+  out.innerHTML = '';
+
+  for (const ep of expected.pages) {
+    const page = parsed.pages.find((p) => p.page === ep.page);
+    const wrap = document.createElement('section');
+    wrap.className = 'page';
+    const h = document.createElement('h2');
+    h.textContent = `Page ${ep.page} · ${ep.kind}`;
+    const verdict = document.createElement('p');
+    verdict.className = 'verdict';
+    const sheet = document.createElement('div');
+    sheet.className = 'sheet';
+    sheet.style.aspectRatio = `${ep.width} / ${ep.height}`;
+    wrap.append(h, verdict, sheet);
+    out.append(wrap);
+
+    const pdfPage = await pdf.getPage(ep.page);
+    const canvas = document.createElement('canvas');
+    sheet.append(canvas);
+    const scale = 2 * (900 / pdfPage.getViewport({ scale: 1 }).width);
+    const vp = pdfPage.getViewport({ scale });
+    canvas.width = vp.width; canvas.height = vp.height;
+    await pdfPage.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+
+    for (const w of ep.words) sheet.append(box(frac(w.box, ep.width, ep.height), 'exp', w.t));
+
+    if (!page || page.positionsOk === false) {
+      verdict.textContent = `No positions from this parser for this page${page?.positionsError ? ': ' + page.positionsError : ''}.`;
+      verdict.classList.add('bad');
+      continue;
+    }
+    let pass = 0;
+    for (const w of ep.words) {
+      const want = frac(w.box, ep.width, ep.height);
+      const near = page.words
+        .filter((pw) => key(pw.text) === key(w.t))
+        .map((pw) => ({ f: frac(pw.box, page.width, page.height), d: 0 }))
+        .map((c) => ({ ...c, d: dev(c.f, want) }))
+        .sort((a, b) => a.d - b.d)[0];
+      if (!near) continue;
+      if (near.d <= expected.tolerance) pass++;
+      sheet.append(box(near.f, 'found', `${w.t}: off by ${(near.d * 100).toFixed(2)}% of the page`));
+    }
+    verdict.textContent = `${pass}/${ep.words.length} words within ${expected.tolerance * 100}% of the page`;
+    if (pass !== ep.words.length) verdict.classList.add('bad');
+  }
+}
+main().catch((e) => { out.textContent = 'Could not load: ' + e.message; });
+</script>
+</body>
+</html>
