@@ -64,10 +64,14 @@ The deployed edge functions read the key from Supabase, not from your `.env` fil
 1. In your browser, open your Supabase project, then **Edge Functions**, then **Secrets** (in some layouts: Project Settings → Edge Functions).
 2. Add two secrets: `LLAMA_CLOUD_API_KEY` (the key) and `LLAMA_CLOUD_BASE_URL` with the value `https://api.cloud.eu.llamaindex.ai`.
 3. Add a third, `PARSER`, with the value `llamaparse`, only when you want the deployed functions to use LlamaParse. Without it they use the saved test parses. An organisation still needs `offshore_processing_approved` set by happyai before its files are sent.
-4. Check the names were saved. In the terminal:
+4. Check the names were saved. This needs the folder linked to your Supabase project first (as of 30 Sep 2026 it is not, and the account has no happyengine project yet, so create one before step 1). In the terminal:
    ```
    cd C:\ccode\git-repos\happyengine
    ```
+   ```
+   supabase link --project-ref YOUR_PROJECT_REF
+   ```
+   It asks for the database password and then prints `Finished supabase link.` Then:
    ```
    supabase secrets list
    ```
