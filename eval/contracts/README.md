@@ -71,3 +71,20 @@ Typed values, so the eval compares meaning, not wording:
 ```
 
 `status` is `passed`, `needs_attention`, `upcoming` or `later`. A date that can't be worked out until a flag is reviewed has `"value": "pending_review"` and `"status": null` (C3). An empty list means no key dates (C5).
+
+## Running the eval
+
+```
+npm run eval:contracts -- --parser pdfjs --extractor fixture:extract-perfect demo-marula
+```
+
+Prints, per sample and in total: fields correct, grounding (quotes found on their page), highlights (sources whose boxes overlap the expected box with IoU ≥ 0.5), flags found and unexpected, key dates correct, and cost. Exit code 1 on any wrong field, missed or unexpected flag, or wrong date.
+
+- `--parser fixture|pdfjs|llamaparse`: `fixture` (the default) replays a saved parse from `parsed/`. The others parse and save under `parsed/<parser>-<tier>/`, and reuse that next time unless `--reparse` is given, so LlamaParse costs credits only once.
+- `--extractor fixture:<name>|claude`: `fixture:extract-perfect` (the default) replays `recorded/extract-perfect.json`, the answer a perfect extractor gives. `claude` calls the API (needs `ANTHROPIC_API_KEY` and `ANTHROPIC_MODEL` in `supabase/functions/.env`); add `--record` to save its output as `recorded/extract-<model>.json` for free replays, and `--repeat N` to see which fields change between runs.
+- Live adapters (LlamaParse, Claude) only run on samples with `"synthetic": true`. Anything else is refused: real documents need the POPIA gates first (`--allow-offshore` once they're signed off).
+- `scan-marula` is skipped unless `--parser llamaparse` is used: its pages are images only.
+
+`recorded/` holds extraction outputs: `extract-perfect.json` is hand-built from `expected.json` and the demo text; `extract-<model>.json` files are recordings of real runs.
+
+`expected.json` lists C3's "End of initial period" (30 Sep 2026, passed): the brief 05 rules derive C3's end date from start + 6 months − 1 day. The demo's date panel left it out.

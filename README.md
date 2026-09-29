@@ -12,7 +12,8 @@ Behaviour and UI spec: `happyai/docs/happy-month-end-demo-brief.md` and `happyai
 | `packages/core/test/` | Unit tests for money and dates |
 | `packages/month-end/src/` | `@happy/month-end`. Pure TypeScript: CSV/OFX ingest, matching Rules 1–6, reconciliation panel, review/approval gate. Imports core by relative path |
 | `packages/month-end/test/` | Unit tests. `marula.test.ts` is the demo brief's fixture and verified arithmetic; `rule5.test.ts` and `split.test.ts` cover suggestions |
-| `packages/contracts/src/` | `@happy/contracts`. Contracts preset type and `validateContractsPreset()` |
+| `packages/contracts/src/` | `@happy/contracts`. Contracts engine: extraction schema, `buildRecord` (quote check, amendments, review rules, key dates), `applyDecisions`, register, preset searches, reminder draft |
+| `eval/contracts/run.ts` | Contracts eval (`npm run eval:contracts`): fields, grounding, highlights, flags and key dates per sample |
 | `packages/documents/src/` | `@happy/documents`. Parser adapters (fixture, LlamaParse EU, local PDF.js for digital PDFs), Claude extractor, quote check with word boxes, offshore guard |
 | `scripts/parse-file.ts` | Parses one PDF with `pdfjs` or `llamaparse` and records the result under `parsed/` |
 | `scripts/check-contracts-pdfjs.ts` | Checks the PDF.js parser and quote check against the Contracts test set |

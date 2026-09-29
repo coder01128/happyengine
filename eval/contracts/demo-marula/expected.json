@@ -61,6 +61,7 @@
         { "kind": "conflict", "field": "notice", "about": "30 days vs one calendar month" }
       ],
       "dates": [
+        { "key": "end_of_initial_period", "label": "End of initial period", "value": "2026-09-30", "derivation": "start 2026-04-01 + 6 months − 1 day", "status": "passed" },
         { "key": "notice", "label": "Notice deadline", "value": "pending_review", "derivation": "conflict", "status": null }
       ]
     },

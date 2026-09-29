@@ -10,6 +10,7 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit && tsc -p app",
     "eval": "node eval/run.ts",
+    "eval:contracts": "node eval/contracts/run.ts",
     "synth": "node eval/synth/generate.ts",
     "smoke": "node scripts/smoke.ts",
     "seed": "node scripts/seed-local.ts",
