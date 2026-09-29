@@ -1,4 +1,7 @@
 node_modules/
+dist/
+# Local test users and other machine-only files
+.local/
 .env
 .env.*
 !.env.example

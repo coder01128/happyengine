@@ -17,6 +17,8 @@ Behaviour and UI spec: `happyai/docs/happy-month-end-demo-brief.md` and `happyai
 | `supabase/migrations/` | Database: organisations, memberships, runs, engine output, review state, append-only timeline, storage bucket. Row-level security on every table |
 | `supabase/functions/` | `run-matching` (upload → engine → stored in one transaction) and `approve-run` (re-checks with the engine, approves only at R0.00) |
 | `scripts/smoke.ts` | End-to-end check against the local stack, including organisation isolation |
+| `scripts/seed-local.ts` | Local sample organisation, test users and two matched runs for trying the app |
+| `app/` | Review screen (React + Vite): runs list, new reconciliation upload, exceptions with decisions, live reconciliation panel, approval, close checklist, record |
 
 ## Local Supabase
 
@@ -36,6 +38,16 @@ Serves the edge functions. Leave it running in its own terminal.
 npm run smoke
 ```
 Runs the end-to-end check. Ends with `All checks passed`. It creates throwaway organisations and test users and deletes them at the end.
+
+```
+npm run seed
+```
+Creates the sample organisation, a reviewer and an uploader, and two matched runs. Needs `supabase functions serve` running. Sign-in details go to `.local/dev-users.json` (git-ignored); `npm run seed -- --reset` starts over.
+
+```
+npm run app
+```
+Starts the review screen at http://127.0.0.1:5173. Sign in with a user from `.local/dev-users.json`.
 
 ```
 supabase db reset

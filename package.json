@@ -3,14 +3,17 @@
   "private": true,
   "type": "module",
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "app"
   ],
   "scripts": {
     "test": "vitest run",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc -p app",
     "eval": "node eval/run.ts",
     "synth": "node eval/synth/generate.ts",
-    "smoke": "node scripts/smoke.ts"
+    "smoke": "node scripts/smoke.ts",
+    "seed": "node scripts/seed-local.ts",
+    "app": "npm run dev -w @happy/app"
   },
   "devDependencies": {
     "@supabase/supabase-js": "^2.117.2",

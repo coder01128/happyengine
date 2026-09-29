@@ -7,5 +7,6 @@ export * from './match.ts';
 export * from './split.ts';
 export * from './reconcile.ts';
 export * from './review.ts';
+export * from './rows.ts';
 export * from './ingest/csv.ts';
 export * from './ingest/ofx.ts';

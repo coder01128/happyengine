@@ -5,23 +5,13 @@
 //
 // Usage (with `supabase start` running): npm run smoke
 
-import { execSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-
-const root = join(import.meta.dirname, '..');
-
-function localKeys() {
-  const status = JSON.parse(execSync('supabase status -o json', { cwd: root, encoding: 'utf8' }));
-  const url: string = status.API_URL;
-  if (!/^http:\/\/(127\.0\.0\.1|localhost)[:/]/.test(url)) throw new Error(`Refusing to run against non-local ${url}`);
-  return { url, anon: status.ANON_KEY as string, service: status.SERVICE_ROLE_KEY as string };
-}
+import { localKeys, noSession, root } from './local.ts';
 
 const { url, anon, service } = localKeys();
-const noSession = { auth: { persistSession: false, autoRefreshToken: false } };
 const admin = createClient(url, service, noSession);
 
 let failures = 0;
