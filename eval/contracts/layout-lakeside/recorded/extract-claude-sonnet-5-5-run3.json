@@ -5,7 +5,7 @@
       "counterparty": [
         {
           "value": "Kloof Storage (Pty) Ltd",
-          "quote": "This sub-lease is entered into between Kloof Storage (Pty) Ltd (sample) (\"the Sublessor\") and Marula Office Supplies (Pty) Ltd (\"the Sublessee\").",
+          "quote": "This sub-lease is entered into between Kloof Storage (Pty) Ltd (sample) (\"the Sublessor\")",
           "file": "lakeside-sublease.pdf",
           "page": 1,
           "clause": "cl. 1.1"
@@ -13,11 +13,19 @@
       ],
       "agreementType": [
         {
-          "value": "Sub-lease of warehouse unit",
-          "quote": "This sub-lease is entered into between Kloof Storage (Pty) Ltd (sample)",
+          "value": "Warehouse sub-lease",
+          "quote": "# **SUB-LEASE OF WAREHOUSE UNIT**",
+          "file": "lakeside-sublease.pdf",
+          "page": 1
+        }
+      ],
+      "agreementCategory": [
+        {
+          "value": "lease",
+          "quote": "The Sublessor sub-lets to the Sublessee Unit 12, Kloof Business Yard, Pinetown",
           "file": "lakeside-sublease.pdf",
           "page": 1,
-          "clause": "cl. 1.1"
+          "clause": "cl. 2.1"
         }
       ],
       "premises": [
@@ -36,6 +44,15 @@
           "file": "lakeside-sublease.pdf",
           "page": 1,
           "clause": "cl. 3.1"
+        }
+      ],
+      "endDate": [
+        {
+          "value": "not_stated",
+          "quote": "The initial term is 24 (twenty-four) months from the Commencement Date.",
+          "file": "lakeside-sublease.pdf",
+          "page": 1,
+          "clause": "cl. 3.2"
         }
       ],
       "termMonths": [
@@ -110,20 +127,11 @@
       ],
       "scope": [
         {
-          "value": "Warehouse and storage area use only",
-          "quote": "for use as a warehouse and storage area only.",
+          "value": "Sub-let of warehouse unit for use as a warehouse and storage area only",
+          "quote": "for use as a warehouse and storage area only",
           "file": "lakeside-sublease.pdf",
           "page": 1,
           "clause": "cl. 2.1"
-        }
-      ],
-      "endDate": [
-        {
-          "value": "not_stated",
-          "quote": "The initial term is 24 (twenty-four) months from the Commencement Date.",
-          "file": "lakeside-sublease.pdf",
-          "page": 1,
-          "clause": "cl. 3.2"
         }
       ]
     },

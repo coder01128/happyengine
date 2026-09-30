@@ -14,9 +14,18 @@
       "agreementType": [
         {
           "value": "Warehouse sub-lease",
-          "quote": "SUB-LEASE OF WAREHOUSE UNIT",
+          "quote": "# **SUB-LEASE OF WAREHOUSE UNIT**",
           "file": "lakeside-sublease.pdf",
           "page": 1
+        }
+      ],
+      "agreementCategory": [
+        {
+          "value": "lease",
+          "quote": "The Sublessor sub-lets to the Sublessee Unit 12, Kloof Business Yard, Pinetown",
+          "file": "lakeside-sublease.pdf",
+          "page": 1,
+          "clause": "cl. 2.1"
         }
       ],
       "premises": [
@@ -37,18 +46,18 @@
           "clause": "cl. 3.1"
         }
       ],
-      "endDate": [
+      "termMonths": [
         {
-          "value": "not_stated",
+          "value": 24,
           "quote": "The initial term is 24 (twenty-four) months from the Commencement Date.",
           "file": "lakeside-sublease.pdf",
           "page": 1,
           "clause": "cl. 3.2"
         }
       ],
-      "termMonths": [
+      "endDate": [
         {
-          "value": 24,
+          "value": "not_stated",
           "quote": "The initial term is 24 (twenty-four) months from the Commencement Date.",
           "file": "lakeside-sublease.pdf",
           "page": 1,
@@ -118,7 +127,7 @@
       ],
       "scope": [
         {
-          "value": "Use as a warehouse and storage area only",
+          "value": "Sub-let of warehouse unit for use as a warehouse and storage area only",
           "quote": "for use as a warehouse and storage area only",
           "file": "lakeside-sublease.pdf",
           "page": 1,

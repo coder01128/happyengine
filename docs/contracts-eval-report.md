@@ -13,7 +13,7 @@ Made-up documents only. Claude Sonnet 5.5, LlamaParse EU with pinned versions (c
 | `watermark-marula` | The same digital PDFs with three dark diagonal SAMPLE marks per page | cost-effective |
 | `layout-lakeside` | A different layout: two columns in small type, running on to a second page, with a red RECEIVED stamp lying over a clause | cost-effective |
 
-121 field answers per run (37 + 37 + 37 + 10), each checked against a hand-written answer key. The free check (a perfect extractor on the digital PDFs, no network) must stay at `fields 84/84 · grounding 109/109 · highlights 93/93 · flags 6/6 (0 unexpected) · key dates 18/18`.
+121 field answers per run (37 + 37 + 37 + 10), each checked against a hand-written answer key. The free check (a perfect extractor on the digital PDFs, no network) must stay at `fields 95/95 · grounding 138/138 · highlights 111/111 · flags 12/12 (0 unexpected) · key dates 18/18`.
 
 ## Results (three Claude runs)
 
@@ -159,3 +159,31 @@ The recordings in `eval/contracts/*/recorded/extract-claude-sonnet-5-5*.json` we
   1. A charge stated in words (an insurance levy of 1.5%, copy charges "R0.19 / R1.45 per copy") is recorded as a `{ text }` fee next to the lines. A text fee has no charge name, so the merge falls back to the ordinary rules and the fee is flagged as a conflict: 4 of 12 runs of C4 or C5 (scan C5 twice, watermark C5 once, demo C4 once). Flagged, not silent, but a false alarm. Proposal: allow `{ text, what }` beside lines.
   2. A rate card (C5 Schedule A) is now recorded as seven lines where the answer key expects the words "Rates per Schedule A". The seven lines are correct amounts. Counted as wrong by the key (5 of 12 runs of C5); one run recorded only 3 of the 7 rows, which is a real incomplete reading with no flag.
 - Answer-key gaps (proposals, not changed): C5 and C4 keys do not list rate-card or copy-charge lines; the scorer compares VAT strictly when Claude leaves it out.
+
+## D18–D22 live result (30 Sep 2026): categories, required fields, VAT status, charges in words
+
+Third set of live recordings (the D17 set is in git history at commit ad02a6e). New in force: categories with required renewal, notice and end date (D18/D19), the confirm flag for "not applied" categories, `{ text, what }` beside fee lines (D21), VAT status required on every amount line and the C5 rate card and C4 copy charges accepted as lines in the keys (D22). The answer keys now include the category, so 137 field answers per run (121 + 16); "of 121" below excludes the category. Claude used 456,357 input and 78,037 output tokens; 0 LlamaParse credits.
+
+| Per run | Run 1 | Run 2 | Run 3 |
+| --- | --- | --- | --- |
+| Fields correct (of 137) | 129 | 131 | 130 |
+| Same, without the category (of 121) | 113 | 115 | 114 |
+| Grounding | 256/256 | 257/257 | 253/253 |
+| Highlights on the expected quote | 153/156 | 155/158 | 153/156 |
+| Unexpected flags | 8 | 7 | 5 |
+
+- **Category: 48/48 right** (16 agreements × 3 runs). No agreement was classified into a "not applied" category, so the confirm flag did not fire on the eval set (it is tested in the unit tests).
+- **Required fields:** the scanned C4's renewal and notice, "not stated" in 3 of 3 runs, are now flagged every time (before, they were silent). The courier agreement C5's three unstated fields are flagged as expected. A required field with no wording at all is flagged too. An end date worked out from start and term is not flagged.
+- **VAT:** no amount line came back without a VAT status; the `not_stated` answer was used for the C3 fee and the C4 copy charges.
+- **Fee accuracy 42/48 (87.5%),** fee change 28/30.
+
+**Silent errors (wrong or incomplete, green chip, no flag on the field): 3 / 1 / 3 per run.**
+
+- The C4 copy charges recorded as one line of words ("Mono R0.19 · colour R1.45 per copy") instead of two amount lines: 5 of 9 C4 runs. The amounts are visible but not structured, so the fee is compared wrong. (Not a wrong number.)
+- The C1 fee change shown as "8% each anniversary" instead of the three steps: 2 of 9 C1 runs (run 1 watermark, run 3 scan). Cause: Claude named the rent lines "rent (year 1)", "rent (year 2)", "rent (year 3)". The merge groups by the charge name, so they became three charges with one date each, not one charge with three steps. The amounts and dates are right; the fee change is not derived and the register would show three rents.
+
+Other flags worth knowing: the D16 flag fired once (demo C4, run 2: the rental line was refused and only the copy charges were recorded, so the fee was flagged instead of silently wrong). One new random miss: demo C1 deposit in run 1, "value not found in cited text", flagged.
+
+### D23 rule tested on the recordings (not built)
+
+"Possibly incomplete": for a recorded fee, take each text row (line) of the cited section; if the row holds a Rand amount and none of the row's amounts is in any recorded amount line or the deposit, flag "possibly incomplete: R… is not in any fee line". A row that already holds a recorded amount is treated as covered (this stops the table's "Rate / m²" column from being flagged). On the D17 recordings: 44 fee fields checked, 8 flagged, all 8 real (7 C4 copy charges left out, 1 C5 rate card with only 3 of 7 rows), 0 false. On the D18 recordings: 48 checked, 5 flagged, all 5 real (the C4 copy charges as words), 0 false. Judging the whole cited block instead of the row falsely flagged 9 C1 lease rows (the "Rate / m²" column) in every set.
