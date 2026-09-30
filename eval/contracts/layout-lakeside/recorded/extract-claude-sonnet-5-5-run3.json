@@ -13,7 +13,7 @@
       ],
       "agreementType": [
         {
-          "value": "Warehouse sub-lease",
+          "value": "Sub-lease of warehouse unit",
           "quote": "This sub-lease is entered into between Kloof Storage (Pty) Ltd (sample)",
           "file": "lakeside-sublease.pdf",
           "page": 1,
@@ -36,15 +36,6 @@
           "file": "lakeside-sublease.pdf",
           "page": 1,
           "clause": "cl. 3.1"
-        }
-      ],
-      "endDate": [
-        {
-          "value": "not_stated",
-          "quote": "shall vacate on the last day of the sub-lease, leaving the Premises empty",
-          "file": "lakeside-sublease.pdf",
-          "page": 1,
-          "clause": "cl. 3.3"
         }
       ],
       "termMonths": [
@@ -86,9 +77,10 @@
           "value": {
             "cents": 1850000,
             "per": "month",
+            "what": "rent",
             "vat": "excluded"
           },
-          "quote": "The monthly rent is R18 500.00 RECEIVED 13 MAR 2026 excluding VAT",
+          "quote": "The monthly rent is R18 500.00 RECEIVED 13 MAR 2026 excluding VAT, payable in advance",
           "file": "lakeside-sublease.pdf",
           "page": 1,
           "clause": "cl. 4.1"
@@ -118,11 +110,20 @@
       ],
       "scope": [
         {
-          "value": "Use as a warehouse and storage area only",
+          "value": "Warehouse and storage area use only",
           "quote": "for use as a warehouse and storage area only.",
           "file": "lakeside-sublease.pdf",
           "page": 1,
           "clause": "cl. 2.1"
+        }
+      ],
+      "endDate": [
+        {
+          "value": "not_stated",
+          "quote": "The initial term is 24 (twenty-four) months from the Commencement Date.",
+          "file": "lakeside-sublease.pdf",
+          "page": 1,
+          "clause": "cl. 3.2"
         }
       ]
     },

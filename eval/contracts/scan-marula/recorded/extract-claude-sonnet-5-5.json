@@ -22,7 +22,7 @@
       ],
       "premises": [
         {
-          "value": "Unit 4, Oakridge Business Park, 12 Sample Road, Sampleton, approximately 412 m²",
+          "value": "Unit 4, Oakridge Business Park, 12 Sample Road, Sampleton, measuring approximately 412 m²",
           "quote": "\"Premises\" means Unit 4, Oakridge Business Park, 12 Sample Road, Sampleton, measuring approximately 412 m²",
           "file": "c1-lease.pdf",
           "page": 2,
@@ -41,7 +41,7 @@
       "endDate": [
         {
           "value": "2027-01-31",
-          "quote": "ending on 31 January 2027, both days inclusive",
+          "quote": "ending on 31 January 2027, both days inclusive, and \"Expiry Date\" means the last day of that period;",
           "file": "c1-lease.pdf",
           "page": 1,
           "clause": "cl. 2.1.7"
@@ -75,7 +75,7 @@
             "unit": "months",
             "before": "expiry"
           },
-          "quote": "given not less than two calendar months before the Expiry Date.",
+          "quote": "The Tenant shall exercise the option by written notice to the Landlord given not less than two calendar months before the Expiry Date.",
           "file": "c1-lease.pdf",
           "page": 5,
           "clause": "cl. 18.2"
@@ -86,7 +86,7 @@
             "unit": "months",
             "before": "expiry"
           },
-          "quote": "given not less than three calendar months before expiry of this lease.",
+          "quote": "\"18.2 The Tenant shall exercise the option by written notice to the Landlord given not less than three calendar months before expiry of this lease.\"",
           "file": "c1-addendum.pdf",
           "page": 1,
           "clause": "Add. 1 cl. 2"
@@ -97,6 +97,8 @@
           "value": {
             "cents": 2743500,
             "per": "month",
+            "what": "rent",
+            "from": "2024-02-01",
             "vat": "excluded"
           },
           "quote": "| Year 1 · 1 Feb 2024 - 31 Jan 2025 | R27 435.00   | R66.59    |",
@@ -106,8 +108,35 @@
         },
         {
           "value": {
+            "cents": 2963000,
+            "per": "month",
+            "what": "rent",
+            "from": "2025-02-01",
+            "vat": "excluded"
+          },
+          "quote": "| Year 2 · 1 Feb 2025 - 31 Jan 2026 | R29 630.00   | R71.92    |",
+          "file": "c1-lease.pdf",
+          "page": 6,
+          "clause": "Sch. 2"
+        },
+        {
+          "value": {
+            "cents": 3200000,
+            "per": "month",
+            "what": "rent",
+            "from": "2026-02-01",
+            "vat": "excluded"
+          },
+          "quote": "| Year 3 · 1 Feb 2026 - 31 Jan 2027 | R32 000.00   | R77.67    |",
+          "file": "c1-lease.pdf",
+          "page": 6,
+          "clause": "Sch. 2"
+        },
+        {
+          "value": {
             "cents": 45000,
             "per": "month",
+            "what": "additional parking bays (per bay)",
             "vat": "excluded"
           },
           "quote": "The 2 (two) additional bays are let at R450.00 per bay per month, excluding VAT, payable with the Rent.",
@@ -123,30 +152,16 @@
             "percent": 8,
             "every": "anniversary"
           },
-          "quote": "The Rent shall escalate on each anniversary of the Commencement Date by 8% (eight percent)",
+          "quote": "The Rent shall escalate on each anniversary of the Commencement Date by 8% (eight percent) of the Rent payable in the immediately preceding year",
           "file": "c1-lease.pdf",
           "page": 2,
           "clause": "cl. 5.2"
-        },
-        {
-          "value": {
-            "kind": "schedule",
-            "steps": [
-              2743500,
-              2963000,
-              3200000
-            ]
-          },
-          "quote": "| Year 2 · 1 Feb 2025 - 31 Jan 2026 | R29 630.00   | R71.92    |",
-          "file": "c1-lease.pdf",
-          "page": 6,
-          "clause": "Sch. 2"
         }
       ],
       "deposit": [
         {
           "value": 6400000,
-          "quote": "a deposit equal to two months' Rent at the rate applicable in the final year of the Lease Period, being R64 000.00",
+          "quote": "being R64 000.00 (sixty-four thousand rand).",
           "file": "c1-lease.pdf",
           "page": 3,
           "clause": "cl. 6.1"
@@ -154,14 +169,14 @@
       ],
       "scope": [
         {
-          "value": "Offices and storage of office stationery incidental to the Tenant's business",
-          "quote": "The Premises shall be used as offices and for the storage of office stationery incidental to the Tenant's business",
+          "value": "Office premises with storage of office stationery; use of Common Areas; 6 covered parking bays (increased to 8 by Addendum 1)",
+          "quote": "The Premises shall be used as offices and for the storage of office stationery incidental to the Tenant's business, and for no other purpose.",
           "file": "c1-lease.pdf",
           "page": 3,
           "clause": "cl. 8.1"
         },
         {
-          "value": "Parking increased from 6 to 8 covered bays",
+          "value": "Parking allocation increased from 6 to 8 covered bays",
           "quote": "The parking allocation in Schedule 1 is increased from 6 (six) to 8 (eight) covered bays.",
           "file": "c1-addendum.pdf",
           "page": 1,
@@ -174,7 +189,7 @@
         "file": "c1-addendum.pdf",
         "page": 1,
         "clause": "Add. 1 cl. 2",
-        "quote": "clause 18.2 of the Lease is deleted and replaced with the following: \"18.2 The Tenant shall exercise the option by written notice to the Landlord given not less than three calendar months before expiry of this lease.\"",
+        "quote": "clause 18.2 of the Lease is deleted and replaced with the following:",
         "targetClause": "18.2",
         "fieldKeys": [
           "notice"
@@ -198,7 +213,7 @@
       "counterparty": [
         {
           "value": "Ledgerline Software (Pty) Ltd",
-          "quote": "ThisorderformisenteredintobetweenLedgerlineSoftware (Pty) Ltd (sample) (\"Supplier\")",
+          "quote": "ThisorderformisenteredintobetweenLedgerlineSoftware (Pty) Ltd (sample) (\"Supplier\") andMarulaOfficeSupplies (Pty) Ltd (\"Customer\").",
           "file": "c2-subscription.pdf",
           "page": 1,
           "clause": "Order form item 1"
@@ -209,7 +224,8 @@
           "value": "Software subscription",
           "quote": "Orderformandmastersubscriptionterms · accountingsoftware",
           "file": "c2-subscription.pdf",
-          "page": 1
+          "page": 1,
+          "clause": "Title"
         }
       ],
       "premises": [
@@ -233,10 +249,10 @@
       "endDate": [
         {
           "value": "not_stated",
-          "quote": "Each subscription starts on the Subscription Start Date and continues for the Initial Term stated in the order form.",
+          "quote": "12 (twelve) months from the Subscription Start Date",
           "file": "c2-subscription.pdf",
-          "page": 3,
-          "clause": "cl. 14.1"
+          "page": 1,
+          "clause": "Order form item 4"
         }
       ],
       "termMonths": [
@@ -254,7 +270,7 @@
             "kind": "automatic",
             "periodMonths": 12
           },
-          "quote": "this agreement shall renew automatically for successive periods of 12 (twelve) months",
+          "quote": "Thereafter this agreement shall renew automatically for successive periods of 12 (twelve) months",
           "file": "c2-subscription.pdf",
           "page": 3,
           "clause": "cl. 14.2"
@@ -278,9 +294,10 @@
           "value": {
             "cents": 485000,
             "per": "month",
+            "what": "subscription fee",
             "vat": "excluded"
           },
-          "quote": "R4 850.00 per month, excluding VAT",
+          "quote": "5 · Subscription Fee        | R4 850.00 per month, excluding VAT",
           "file": "c2-subscription.pdf",
           "page": 1,
           "clause": "Order form item 5"
@@ -291,7 +308,7 @@
           "value": {
             "kind": "unquantified"
           },
-          "quote": "Supplier may adjust fees on renewal.",
+          "quote": "6.4 Supplier may adjust fees on renewal.",
           "file": "c2-subscription.pdf",
           "page": 2,
           "clause": "cl. 6.4"
@@ -300,19 +317,19 @@
       "deposit": [
         {
           "value": "not_stated",
-          "quote": "Subscription Fees are invoiced monthly in advance and are payable by debit order on the first business day of each month.",
+          "quote": "6.5 All fees exclude VAT, which Customer shall pay at the applicable rate.",
           "file": "c2-subscription.pdf",
           "page": 2,
-          "clause": "cl. 6.1"
+          "clause": "cl. 6.5"
         }
       ],
       "scope": [
         {
-          "value": "Ledgerline Accounting — Business edition (cloud) accounting software subscription, 5 named users",
-          "quote": "Ledgerline Accounting — Business edition (cloud)",
+          "value": "Cloud accounting software subscription (Ledgerline Accounting Business edition) for 5 named users",
+          "quote": "means the hosted software and related support described in the order form;",
           "file": "c2-subscription.pdf",
-          "page": 1,
-          "clause": "Order form item 2"
+          "page": 2,
+          "clause": "cl. 1.4"
         }
       ]
     },
@@ -324,54 +341,54 @@
         {
           "value": "BrightSpan Cleaning Services CC",
           "quote": "This service agreement is entered into between **BrightSpan Cleaning Services CC (sample)**, registration number 2011/000000/23",
-          "clause": "cl. 1.1",
           "file": "c3-cleaning.pdf",
-          "page": 1
+          "page": 1,
+          "clause": "cl. 1.1"
         }
       ],
       "agreementType": [
         {
           "value": "Cleaning services agreement",
-          "quote": "# CLEANING SERVICES AGREEMENT",
-          "clause": "Title",
+          "quote": "This service agreement is entered into between **BrightSpan Cleaning Services CC (sample)**",
           "file": "c3-cleaning.pdf",
-          "page": 1
+          "page": 1,
+          "clause": "cl. 1.1"
         }
       ],
       "premises": [
         {
           "value": "Unit 4, Oakridge Business Park, 12 Sample Road, Sampleton",
           "quote": "\"**Premises**\" means the Client's offices at Unit 4, Oakridge Business Park, 12 Sample Road, Sampleton;",
-          "clause": "cl. 2.1",
           "file": "c3-cleaning.pdf",
-          "page": 1
+          "page": 1,
+          "clause": "cl. 2.1"
         }
       ],
       "startDate": [
         {
           "value": "2026-04-01",
           "quote": "Services commence on 1 April 2026 for an initial period of 6 (six) months.",
-          "clause": "cl. 3.1",
           "file": "c3-cleaning.pdf",
-          "page": 1
+          "page": 1,
+          "clause": "cl. 3.1"
         }
       ],
       "endDate": [
         {
           "value": "not_stated",
           "quote": "After the initial period, this agreement continues on a month-to-month basis.",
-          "clause": "cl. 3.2",
           "file": "c3-cleaning.pdf",
-          "page": 1
+          "page": 1,
+          "clause": "cl. 3.2"
         }
       ],
       "termMonths": [
         {
           "value": 6,
           "quote": "Services commence on 1 April 2026 for an initial period of 6 (six) months.",
-          "clause": "cl. 3.1",
           "file": "c3-cleaning.pdf",
-          "page": 1
+          "page": 1,
+          "clause": "cl. 3.1"
         }
       ],
       "renewal": [
@@ -380,9 +397,9 @@
             "kind": "month_to_month"
           },
           "quote": "After the initial period, this agreement continues on a month-to-month basis.",
-          "clause": "cl. 3.2",
           "file": "c3-cleaning.pdf",
-          "page": 1
+          "page": 1,
+          "clause": "cl. 3.2"
         }
       ],
       "notice": [
@@ -392,9 +409,9 @@
             "unit": "days"
           },
           "quote": "Either party may terminate this agreement on 30 days' written notice.",
-          "clause": "cl. 9.1",
           "file": "c3-cleaning.pdf",
-          "page": 3
+          "page": 3,
+          "clause": "cl. 9.1"
         },
         {
           "value": {
@@ -402,21 +419,22 @@
             "unit": "months"
           },
           "quote": "**4** Notice of termination: one calendar month's notice.",
-          "clause": "Sch. 1 item 4",
           "file": "c3-cleaning.pdf",
-          "page": 5
+          "page": 5,
+          "clause": "Sch. 1 item 4"
         }
       ],
       "fee": [
         {
           "value": {
             "cents": 690000,
-            "per": "month"
+            "per": "month",
+            "what": "Monthly Fee"
           },
           "quote": "**1** Monthly fee: R6 900.00.",
-          "clause": "Sch. 1 item 1",
           "file": "c3-cleaning.pdf",
-          "page": 5
+          "page": 5,
+          "clause": "Sch. 1 item 1"
         }
       ],
       "feeChange": [
@@ -425,27 +443,27 @@
             "kind": "none"
           },
           "quote": "**1** Monthly fee: R6 900.00.",
-          "clause": "Sch. 1 item 1",
           "file": "c3-cleaning.pdf",
-          "page": 5
+          "page": 5,
+          "clause": "Sch. 1 item 1"
         }
       ],
       "deposit": [
         {
           "value": "not_stated",
           "quote": "The Client shall pay the Monthly Fee monthly in arrears, within 30 (thirty) days of the date of the Contractor's tax invoice.",
-          "clause": "cl. 10.1",
           "file": "c3-cleaning.pdf",
-          "page": 3
+          "page": 3,
+          "clause": "cl. 10.1"
         }
       ],
       "scope": [
         {
-          "value": "Daily office cleaning, Monday to Friday",
+          "value": "Daily office cleaning, Monday to Friday, 17:00 to 19:00",
           "quote": "**2** Scope: daily office cleaning, Monday to Friday.",
-          "clause": "Sch. 1 item 2",
           "file": "c3-cleaning.pdf",
-          "page": 5
+          "page": 5,
+          "clause": "Sch. 1 item 2"
         }
       ]
     },
@@ -464,11 +482,11 @@
       ],
       "agreementType": [
         {
-          "value": "Equipment rental (copier)",
+          "value": "Equipment rental (office copier)",
           "quote": "Schedule no. RS-23-0877 to the Master Rental Agreement · standard terms overleaf",
           "file": "c4-copier.pdf",
           "page": 1,
-          "clause": "Title"
+          "clause": "Header"
         }
       ],
       "premises": [
@@ -530,12 +548,35 @@
           "value": {
             "cents": 198000,
             "per": "month",
+            "what": "monthly rental",
             "vat": "excluded"
           },
           "quote": "The monthly rental is R1 980.00, excluding VAT.",
           "file": "c4-copier.pdf",
           "page": 1,
           "clause": "item 5"
+        },
+        {
+          "value": {
+            "cents": 19,
+            "per": "copy",
+            "what": "mono copy charge"
+          },
+          "quote": "Mono R0.19 · colour R1.45 per copy, billed monthly under sep-",
+          "file": "c4-copier.pdf",
+          "page": 1,
+          "clause": "item 8"
+        },
+        {
+          "value": {
+            "cents": 145,
+            "per": "copy",
+            "what": "colour copy charge"
+          },
+          "quote": "Mono R0.19 · colour R1.45 per copy, billed monthly under sep-",
+          "file": "c4-copier.pdf",
+          "page": 1,
+          "clause": "item 8"
         }
       ],
       "feeChange": [
@@ -577,7 +618,7 @@
       "counterparty": [
         {
           "value": "Coastal Couriers (Pty) Ltd",
-          "quote": "This service agreement is entered into between **Coastal Couriers (Pty) Ltd (sample)** (\"the Courier\")",
+          "quote": "1.1 This service agreement is entered into between **Coastal Couriers (Pty) Ltd (sample)** (\"the Courier\") and Marula Office Supplies (Pty) Ltd (\"the Customer\").",
           "file": "c5-courier.pdf",
           "page": 1,
           "clause": "cl. 1.1"
@@ -586,9 +627,10 @@
       "agreementType": [
         {
           "value": "Courier services agreement",
-          "quote": "## CREDIT APPLICATION AND SERVICE AGREEMENT",
+          "quote": "1.1 This service agreement is entered into between",
           "file": "c5-courier.pdf",
-          "page": 1
+          "page": 1,
+          "clause": "cl. 1.1"
         }
       ],
       "premises": [
@@ -648,9 +690,93 @@
       "fee": [
         {
           "value": {
-            "text": "Per-consignment rates per Schedule A (e.g. Same-day within city R185.00; Overnight national R240.00; Economy R145.00), excluding VAT"
+            "cents": 18500,
+            "per": "consignment",
+            "what": "Same-day, within city",
+            "vat": "excluded"
           },
-          "quote": "Rates exclude VAT. Volumetric weight applies as in clause 5.3 of the standard terms.",
+          "quote": "| Same-day, within city                           | R185.00 |",
+          "file": "c5-courier.pdf",
+          "page": 3,
+          "clause": "Sch. A"
+        },
+        {
+          "value": {
+            "cents": 24000,
+            "per": "consignment",
+            "what": "Overnight, national",
+            "vat": "excluded"
+          },
+          "quote": "| Overnight, national                             | R240.00 |",
+          "file": "c5-courier.pdf",
+          "page": 3,
+          "clause": "Sch. A"
+        },
+        {
+          "value": {
+            "cents": 14500,
+            "per": "consignment",
+            "what": "Economy, 2–3 days, national",
+            "vat": "excluded"
+          },
+          "quote": "| Economy, 2–3 days, national                     | R145.00 |",
+          "file": "c5-courier.pdf",
+          "page": 3,
+          "clause": "Sch. A"
+        },
+        {
+          "value": {
+            "cents": 1800,
+            "per": "kg over 5 kg",
+            "what": "Per kg over 5 kg",
+            "vat": "excluded"
+          },
+          "quote": "| Per kg over 5 kg                                | R18.00  |",
+          "file": "c5-courier.pdf",
+          "page": 3,
+          "clause": "Sch. A"
+        },
+        {
+          "value": {
+            "cents": 9500,
+            "per": "consignment",
+            "what": "Outlying areas surcharge",
+            "vat": "excluded"
+          },
+          "quote": "| Outlying areas surcharge, per consignment       | R95.00  |",
+          "file": "c5-courier.pdf",
+          "page": 3,
+          "clause": "Sch. A"
+        },
+        {
+          "value": {
+            "cents": 22000,
+            "per": "collection",
+            "what": "After-hours collection",
+            "vat": "excluded"
+          },
+          "quote": "| After-hours collection                          | R220.00 |",
+          "file": "c5-courier.pdf",
+          "page": 3,
+          "clause": "Sch. A"
+        },
+        {
+          "value": {
+            "cents": 6000,
+            "per": "15 minutes after the first 15",
+            "what": "Waiting time",
+            "vat": "excluded"
+          },
+          "quote": "| Waiting time, per 15 minutes after the first 15 | R60.00  |",
+          "file": "c5-courier.pdf",
+          "page": 3,
+          "clause": "Sch. A"
+        },
+        {
+          "value": {
+            "text": "Insurance levy 1.5% of declared value"
+          },
+          "quote": "| Insurance levy, declared value                  | 1.5%    |",
           "file": "c5-courier.pdf",
           "page": 3,
           "clause": "Sch. A"
@@ -658,10 +784,8 @@
       ],
       "feeChange": [
         {
-          "value": {
-            "kind": "unquantified"
-          },
-          "quote": "The Courier may amend these terms on 30 days' written notice.",
+          "value": "not_stated",
+          "quote": "12.1 These terms, the application and Schedule A are the whole agreement. The Courier may amend these terms on 30 days' written notice.",
           "file": "c5-courier.pdf",
           "page": 2,
           "clause": "cl. 12.1"
@@ -678,8 +802,8 @@
       ],
       "scope": [
         {
-          "value": "Courier services: carriage and delivery of consignments (parcels and documents) at Schedule A rates",
-          "quote": "\"Consignment\" means any parcel or document accepted by the Courier for delivery.",
+          "value": "Courier carriage and delivery of consignments (parcels and documents)",
+          "quote": "1.1 \"Consignment\" means any parcel or document accepted by the Courier for delivery.",
           "file": "c5-courier.pdf",
           "page": 2,
           "clause": "cl. 1.1"

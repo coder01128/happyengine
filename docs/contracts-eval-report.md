@@ -141,3 +141,21 @@ npm run eval:contracts -- --parser llamaparse --extractor claude --repeat 3 --re
 ```
 
 The first is free and must stay at 100%. The second re-scores the recorded runs (free). The third makes new Claude calls (about $2–3) and re-records.
+
+## D17 live result (30 Sep 2026): fee as lines, three new Claude runs
+
+The recordings in `eval/contracts/*/recorded/extract-claude-sonnet-5-5*.json` were replaced by three new live runs with the fee-lines instructions (the earlier recordings, and the numbers above, are in git history at commit 0198b88). Rules in force: D13, D15, D16, D17. Parses were reused (0 LlamaParse credits); Claude used 419,733 input and 79,944 output tokens.
+
+| Per run | Run 1 | Run 2 | Run 3 | Before D17 (same rules, old recordings) |
+| --- | --- | --- | --- | --- |
+| Fields correct (of 121) | 114 | 112 | 115 | 111 / 110 / 109 |
+| Grounding | 229/229 | 227/227 | 223/223 | 214/214 |
+| Highlights on the expected quote | 141/146 | 147/151 | 135/138 | 126/129, 122/126, 123/126 |
+| Unexpected flags | 5 | 6 | 4 | 9 / 9 / 10 (with D16 on the old recordings) |
+
+- **C1 (the lease with the addendum and the schedule):** fee change right in 9/9 copy-runs (was 0/9), fee right in 8/9 (was 0/9), notice 9/9. The one C1 fee miss is a scanned copy where Claude left VAT off the rent lines (amounts and start dates right).
+- **The D16 flag fired 0 times** on these runs: with the fee lines, Claude no longer gives a schedule that the value check refuses.
+- **New problems the change created:**
+  1. A charge stated in words (an insurance levy of 1.5%, copy charges "R0.19 / R1.45 per copy") is recorded as a `{ text }` fee next to the lines. A text fee has no charge name, so the merge falls back to the ordinary rules and the fee is flagged as a conflict: 4 of 12 runs of C4 or C5 (scan C5 twice, watermark C5 once, demo C4 once). Flagged, not silent, but a false alarm. Proposal: allow `{ text, what }` beside lines.
+  2. A rate card (C5 Schedule A) is now recorded as seven lines where the answer key expects the words "Rates per Schedule A". The seven lines are correct amounts. Counted as wrong by the key (5 of 12 runs of C5); one run recorded only 3 of the 7 rows, which is a real incomplete reading with no flag.
+- Answer-key gaps (proposals, not changed): C5 and C4 keys do not list rate-card or copy-charge lines; the scorer compares VAT strictly when Claude leaves it out.
