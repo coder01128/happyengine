@@ -4,6 +4,7 @@ export * from './types.ts';
 export * from './errors.ts';
 export * from './grounding.ts';
 export * from './positions.ts';
+export * from './highlight.ts';
 export * from './value-check.ts';
 export * from './parsers/fixture.ts';
 export * from './parsers/llamaparse.ts';

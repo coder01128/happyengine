@@ -1,10 +1,13 @@
 import type { Session } from '@supabase/supabase-js';
-import { useEffect, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
 import { ThemeButton } from './components/ui.tsx';
 import { RunReview } from './pages/RunReview.tsx';
 import { Runs } from './pages/Runs.tsx';
 import { SignIn } from './pages/SignIn.tsx';
 import { isLocal, supabase, type Role } from './supabase.ts';
+
+// The source viewer's developer test page exists only in development builds; production bundles leave it out.
+const DevSourceViewer = import.meta.env.DEV ? lazy(() => import('./pages/DevSourceViewer.tsx')) : null;
 
 export interface Membership {
   orgId: string;
@@ -22,6 +25,7 @@ function useHashRoute() {
     window.addEventListener('hashchange', on);
     return () => window.removeEventListener('hashchange', on);
   }, []);
+  if (import.meta.env.DEV && hash === '#/dev/source-viewer') return { page: 'dev' } as const;
   const run = hash.match(/^#\/run\/([0-9a-f-]{36})$/i)?.[1];
   return run ? ({ page: 'run', runId: run } as const) : ({ page: 'runs' } as const);
 }
@@ -86,6 +90,15 @@ export function App() {
       });
   }, [userId]);
 
+  if (route.page === 'dev' && DevSourceViewer) {
+    return (
+      <Shell crumb="Developer test page">
+        <Suspense fallback={<p className="muted">Loading the sample documents…</p>}>
+          <DevSourceViewer />
+        </Suspense>
+      </Shell>
+    );
+  }
   if (session === undefined) return null;
   if (!session) {
     return (

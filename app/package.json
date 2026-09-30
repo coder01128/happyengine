@@ -9,9 +9,12 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@happy/contracts": "*",
     "@happy/core": "*",
+    "@happy/documents": "*",
     "@happy/month-end": "*",
     "@supabase/supabase-js": "^2.117.2",
+    "pdfjs-dist": "6.3.289",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"
   },

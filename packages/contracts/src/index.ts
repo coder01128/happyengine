@@ -3,6 +3,7 @@ export * from './types.ts';
 export * from './extraction.ts';
 export * from './value-check.ts';
 export * from './record.ts';
+export * from './viewer.ts';
 export * from './register.ts';
 export * from './reminders.ts';
 export * from './adapters.ts';
