@@ -106,6 +106,8 @@ Send this from mr.bradk@gmail.com to **support@runllama.ai**:
 > 3. Which third-party AI models and providers the Agentic and Agentic Plus parse tiers use, and where they process data.
 > 4. Confirmation that `disable_cache: true` means no copy of the file or output is kept after the job completes, and what retention applies to job metadata.
 > 5. Whether granular word-level bounding boxes are available on the Free plan, or only on paid plans.
+> 6. A bug report. On picture-only pages, word x-coordinates are compressed by about 1% (2% on one synthetic page): across 1,667 words on scanned pages, x is scaled by 0.9895 against the same words on the digital PDF, while y is exact (0.9998). Is there a known scale or DPI assumption for image pages, and can it be corrected? I can send the made-up test PDF and both parses.
+> 7. Whether the API can report which parser version a job used (`metadata.version` is absent from the response, although the docs mention it).
 >
 > Thank you,
 > Brad Kruger

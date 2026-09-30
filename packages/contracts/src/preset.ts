@@ -8,7 +8,13 @@ export interface ContractsPreset {
   service: 'Happy Contracts';
   version: number;
   /** Parser tier for digital PDFs; scanned uploads use scannedTier. Agreements over the page cap are refused. */
-  parser: { tier: ParserTier; scannedTier: 'agentic' | 'agentic_plus'; maxPagesPerAgreement: number };
+  parser: {
+    tier: ParserTier;
+    scannedTier: 'agentic' | 'agentic_plus';
+    maxPagesPerAgreement: number;
+    /** Parser version pinned per tier, as a release date. A tier not listed reads with "latest", which can't be repeated later. */
+    versions?: Partial<Record<ParserTier, string>>;
+  };
   /** Fuzzy match threshold (0–1) for finding an extracted quote on its page. Below it: "Not verified — review". */
   grounding: {
     minScore: number;
@@ -54,6 +60,12 @@ function problemsWith(p: unknown): string[] {
     need(TIERS.includes(parser.tier as ParserTier), `parser.tier: must be one of ${TIERS.join(', ')}`);
     need(SCANNED_TIERS.includes(parser.scannedTier as ParserTier), `parser.scannedTier: must be one of ${SCANNED_TIERS.join(', ')}`);
     need(isWhole(parser.maxPagesPerAgreement, 1), 'parser.maxPagesPerAgreement: must be a whole number of 1 or more');
+    const versions = parser.versions;
+    need(
+      versions === undefined ||
+        (isObject(versions) && Object.entries(versions).every(([t, v]) => TIERS.includes(t as ParserTier) && typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v))),
+      'parser.versions: must map a tier to a release date like 2026-09-28',
+    );
   }
 
   const minScore = isObject(p.grounding) ? p.grounding.minScore : undefined;

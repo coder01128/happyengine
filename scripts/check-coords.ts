@@ -11,7 +11,7 @@ import { join } from 'node:path';
 import { createLlamaParseParser, type ParsedDocument } from '../packages/documents/src/index.ts';
 import { createPdfjsParser } from '../packages/documents/src/parsers/pdfjs.ts';
 import { checkCoords, type ExpectedCoords } from '../eval/fixtures/coords-check.ts';
-import { loadSecrets } from './env.ts';
+import { loadSecrets, pinnedVersions } from './env.ts';
 import { root } from './local.ts';
 
 function arg(name: string): string | undefined {
@@ -34,7 +34,7 @@ async function main() {
   } else {
     loadSecrets();
     tier = arg('tier') ?? 'agentic'; // the picture page needs OCR, so the default is the scan tier
-    const llama = createLlamaParseParser({ apiKey: process.env.LLAMA_CLOUD_API_KEY ?? '', baseUrl: process.env.LLAMA_CLOUD_BASE_URL, offshoreAllowed: true });
+    const llama = createLlamaParseParser({ apiKey: process.env.LLAMA_CLOUD_API_KEY ?? '', baseUrl: process.env.LLAMA_CLOUD_BASE_URL, versions: pinnedVersions(), offshoreAllowed: true });
     console.log(`Sending coords.pdf (made-up test pages) to LlamaParse (${tier})…`);
     doc = await llama.parse(bytes, { filename: 'coords.pdf', tier });
   }

@@ -255,6 +255,27 @@ describe('llamaparse adapter: positions, unreadable pages, version and usage', (
   });
 });
 
+describe('llamaparse adapter: pinned versions', () => {
+  it('sends the pinned version for the tier, and "latest" for a tier that is not pinned', async () => {
+    const m = mockFetch([json({ id: 'a' }), json({ id: 'b' })]);
+    const p = make(m.fn, { versions: { agentic: '2026-09-29' } });
+    await p.submit(new Uint8Array(1), { filename: 'x.pdf', tier: 'agentic' });
+    await p.submit(new Uint8Array(1), { filename: 'x.pdf', tier: 'cost_effective' });
+    const versions = m.calls.map((c) => JSON.parse((c.init.body as FormData).get('configuration') as string).version);
+    expect(versions).toEqual(['2026-09-29', 'latest']);
+  });
+
+  it('reports the pinned version on the result, since the API never says which version it used', async () => {
+    const m = mockFetch([json(JSON.parse(jobJson)), new Response(sidecar)]);
+    const r = await make(m.fn, { versions: { cost_effective: '2026-09-28' } }).fetchWithRaw('job-123');
+    if (r === 'pending') throw new Error('pending');
+    expect(r.document.version).toBe('2026-09-28');
+    const none = await make(mockFetch([json(JSON.parse(jobJson)), new Response(sidecar)]).fn).fetchWithRaw('job-123');
+    if (none === 'pending') throw new Error('pending');
+    expect(none.document.version).toBeUndefined();
+  });
+});
+
 describe('offshore guard', () => {
   it('refuses to create the LlamaParse adapter for an unapproved organisation', () => {
     const m = mockFetch([]);

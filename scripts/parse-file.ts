@@ -7,7 +7,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { createLlamaParseParser, type ParsedDocument } from '../packages/documents/src/index.ts';
 import { createPdfjsParser } from '../packages/documents/src/parsers/pdfjs.ts';
-import { loadSecrets } from './env.ts';
+import { loadSecrets, pinnedVersions } from './env.ts';
 
 function arg(name: string): string | undefined {
   const i = process.argv.indexOf(`--${name}`);
@@ -36,6 +36,7 @@ async function main() {
     const llama = createLlamaParseParser({
       apiKey: process.env.LLAMA_CLOUD_API_KEY ?? '',
       baseUrl: process.env.LLAMA_CLOUD_BASE_URL,
+      versions: pinnedVersions(),
       offshoreAllowed: synthetic,
     });
     console.log(`Sending ${filename} to LlamaParse (${tier})…`);

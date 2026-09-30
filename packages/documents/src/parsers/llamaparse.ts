@@ -23,6 +23,9 @@ export interface LlamaParseConfig {
   apiKey: string;
   /** Defaults to the EU region. Never defaults to North America. */
   baseUrl?: string;
+  /** Parser version to pin per tier, as a release date ("2026-09-28"). A tier not listed uses "latest", which the
+   *  API never reports back, so a run on "latest" can't be repeated later. Only real release dates are accepted. */
+  versions?: Record<string, string>;
   /** The organisation's offshore_processing_approved flag (or an eval sample's synthetic: true). */
   offshoreAllowed: boolean;
   fetch?: typeof fetch;
@@ -120,7 +123,7 @@ export function createLlamaParseParser(cfg: LlamaParseConfig): LlamaParser {
       'configuration',
       JSON.stringify({
         tier,
-        version: 'latest',
+        version: cfg.versions?.[tier] ?? 'latest',
         disable_cache: true, // v2 name for do_not_cache; top level of the configuration
         output_options: { granular_bboxes: ['word', 'line'] },
       }),
@@ -165,12 +168,14 @@ export function createLlamaParseParser(cfg: LlamaParseConfig): LlamaParser {
     }
     const tier = body.job?.tier;
     const parsed = mapLlamaPages(pages);
+    const version = body.metadata?.version ?? (tier ? cfg.versions?.[tier] : undefined);
     const creditsUsed = creditsFromUsage(body.job?.usage ?? body.usage);
     return {
       document: {
         parser: 'llamaparse',
         tier,
-        ...(body.metadata?.version ? { version: body.metadata.version } : {}),
+        // The API doesn't report a version, so the one we pinned for this tier is what the file was read with.
+        ...(version ? { version } : {}),
         pageCount: parsed.length,
         pages: parsed,
         creditsEstimate: tier && CREDITS_PER_PAGE[tier] ? parsed.length * CREDITS_PER_PAGE[tier] : undefined,

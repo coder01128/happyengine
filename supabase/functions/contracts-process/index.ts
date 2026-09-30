@@ -51,6 +51,7 @@ Deno.serve(
         { PARSER: Deno.env.get('PARSER') ?? undefined, LLAMA_CLOUD_API_KEY: Deno.env.get('LLAMA_CLOUD_API_KEY') ?? undefined, LLAMA_CLOUD_BASE_URL: Deno.env.get('LLAMA_CLOUD_BASE_URL') ?? undefined },
         {
           offshoreAllowed: org.offshore_processing_approved === true,
+          versions: preset.parser.versions,
           // Saved parses for local testing live in the private parse-artifacts bucket, never the documents bucket.
           async readFixture(filename) {
             const { data, error } = await admin.storage.from('parse-artifacts').download(`${agreement.org_id}/${agreementId}/_fixtures/${filename}.parsed.json`);

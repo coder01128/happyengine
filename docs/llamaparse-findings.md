@@ -24,7 +24,9 @@ Observed 29–30 Sep 2026 on the EU region, with made-up documents only. Anythin
 
 ## Versions
 
-A request with an invalid `version` is rejected with the list of valid dates for that tier. For `cost_effective` on 29 Sep 2026: 2026-03-25, 03-27, 03-31, 04-09, 05-28, 06-05, 06-08, 06-11, 06-17, 06-18, 06-26, 07-23, 08-08, 08-11, 08-19, 09-28. We send `latest`, which cannot be read back. To make eval runs repeatable, pin a dated version.
+A request with an invalid `version` is rejected with the list of valid dates for that tier (no credits used), so the list can be read by asking. On 30 Sep 2026 the newest were: `cost_effective` 2026-09-28 (16 versions), `agentic` 2026-09-29 (49), `agentic_plus` 2026-09-28 (43).
+
+**Pinned** in the default preset (`parser.versions`): cost_effective 2026-09-28, agentic 2026-09-29, agentic_plus 2026-09-28. The API never reports which version a job used, so the pinned version is what gets recorded on the file (`agreement_files.parser_version`). The picture page in the coordinate test came out 4/8 on the pinned agentic version, against 3/8 on `latest` a day earlier, so versions do differ and pinning matters. To move to a newer version, change the preset and re-run the eval first.
 
 ## Cost seen
 

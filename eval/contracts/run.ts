@@ -20,7 +20,7 @@ import {
 } from '../../packages/contracts/src/index.ts';
 import { createClaudeExtractor, createLlamaParseParser, documentFromSidecar, type ExtractResult, type LlamaParser, type ParsedDocument } from '../../packages/documents/src/index.ts';
 import { createPdfjsParser } from '../../packages/documents/src/parsers/pdfjs.ts';
-import { loadSecrets } from '../../scripts/env.ts';
+import { loadSecrets, pinnedVersions } from '../../scripts/env.ts';
 import { addScore, emptyScore, pct, perfect, scoreAgreement, type Boxes, type Expected, type Score } from './score.ts';
 
 const here = import.meta.dirname;
@@ -107,7 +107,7 @@ async function main() {
             if (parserName === 'pdfjs') {
               parsed[file] = await createPdfjsParser().parse(bytes, { filename: file, tier });
             } else {
-              llama ??= createLlamaParseParser({ apiKey: process.env.LLAMA_CLOUD_API_KEY ?? '', baseUrl: process.env.LLAMA_CLOUD_BASE_URL, offshoreAllowed: true });
+              llama ??= createLlamaParseParser({ apiKey: process.env.LLAMA_CLOUD_API_KEY ?? '', baseUrl: process.env.LLAMA_CLOUD_BASE_URL, versions: pinnedVersions(), offshoreAllowed: true });
               const got = await llama.parseWithRaw(bytes, { filename: file, tier });
               parsed[file] = got.document;
               if (got.sidecar !== undefined) {

@@ -1,7 +1,7 @@
 {
   "service": "Happy Contracts",
   "version": 1,
-  "parser": { "tier": "cost_effective", "scannedTier": "agentic", "maxPagesPerAgreement": 60 },
+  "parser": { "tier": "cost_effective", "scannedTier": "agentic", "maxPagesPerAgreement": 60, "versions": { "cost_effective": "2026-09-28", "agentic": "2026-09-29", "agentic_plus": "2026-09-28" } },
   "grounding": { "minScore": 0.9, "ignoreTokens": ["sample", "copy", "draft", "specimen"] },
   "fields": [
     { "key": "counterparty", "label": "Counterparty", "required": false },

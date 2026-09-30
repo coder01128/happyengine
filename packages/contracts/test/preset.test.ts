@@ -24,6 +24,27 @@ describe('Contracts default preset', () => {
     expect(validateContractsPreset(fresh()).presetSearches.find((s) => s.id === 'notice')).toMatchObject({ kind: 'datesBefore', beforeDays: 90 }));
 });
 
+describe('pinned parser versions', () => {
+  it('the default preset pins every tier to a release date', () =>
+    expect(validateContractsPreset(fresh()).parser.versions).toEqual({ cost_effective: '2026-09-28', agentic: '2026-09-29', agentic_plus: '2026-09-28' }));
+
+  it('a preset with no versions is still valid (those tiers read with "latest")', () => {
+    const p = fresh();
+    delete p.parser.versions;
+    expect(() => validateContractsPreset(p)).not.toThrow();
+  });
+
+  it.each([
+    ['a version that is not a date', { agentic: 'latest' }],
+    ['an unknown tier', { fast: '2026-09-28' }],
+    ['a date in the wrong shape', { agentic: '29/09/2026' }],
+  ])('refuses %s', (_name, versions) => {
+    const p = fresh();
+    p.parser.versions = versions;
+    expect(() => validateContractsPreset(p)).toThrow(/parser\.versions: must map a tier to a release date/);
+  });
+});
+
 describe('validateContractsPreset refuses a broken preset', () => {
   it('names a missing setting', () => {
     const p = fresh();

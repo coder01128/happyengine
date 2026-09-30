@@ -225,6 +225,17 @@ describe('chooseParser', () => {
     expect(() => chooseParser({ PARSER: 'llamaparse', LLAMA_CLOUD_API_KEY: 'llx-key' }, ctx(false))).toThrow(OffshoreNotApproved);
   });
 
+  it('hands the preset\'s pinned versions to LlamaParse, so the request carries the pinned one', async () => {
+    const calls: FormData[] = [];
+    const fetchFn = (async (_u: unknown, init: RequestInit) => {
+      calls.push(init.body as FormData);
+      return new Response(JSON.stringify({ id: 'job-1' }));
+    }) as typeof fetch;
+    const p = chooseParser({ PARSER: 'llamaparse', LLAMA_CLOUD_API_KEY: 'llx-key' }, { ...ctx(true), versions: { agentic: '2026-09-29' }, fetch: fetchFn });
+    await p.submit(new Uint8Array(1), { tier: 'agentic', filename: 'a.pdf' });
+    expect(JSON.parse(calls[0]!.get('configuration') as string).version).toBe('2026-09-29');
+  });
+
   it('gives LlamaParse to an approved organisation, and needs its key', () => {
     expect(chooseParser({ PARSER: 'llamaparse', LLAMA_CLOUD_API_KEY: 'llx-key' }, ctx(true)).name).toBe('llamaparse');
     expect(() => chooseParser({ PARSER: 'llamaparse' }, ctx(true))).toThrow(/LLAMA_CLOUD_API_KEY is empty/);

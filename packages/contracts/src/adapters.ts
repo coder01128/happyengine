@@ -25,6 +25,8 @@ export interface ParserEnv { PARSER?: string; LLAMA_CLOUD_API_KEY?: string; LLAM
 export interface ParserContext {
   /** The organisation's offshore_processing_approved flag. */
   offshoreAllowed: boolean;
+  /** The preset's pinned parser version per tier (preset.parser.versions). */
+  versions?: Record<string, string>;
   /** The saved parse for a file (JSON text of a ParsedDocument), or null when there isn't one. */
   readFixture(filename: string): Promise<string | null>;
   fetch?: typeof fetch;
@@ -55,6 +57,7 @@ export function chooseParser(env: ParserEnv, ctx: ParserContext): AsyncParser {
       apiKey: env.LLAMA_CLOUD_API_KEY ?? '',
       baseUrl: env.LLAMA_CLOUD_BASE_URL || undefined,
       offshoreAllowed: ctx.offshoreAllowed,
+      versions: ctx.versions,
       fetch: ctx.fetch,
     });
     return {
