@@ -5,7 +5,7 @@
       "counterparty": [
         {
           "value": "Kloof Storage (Pty) Ltd",
-          "quote": "This sub-lease is entered into between Kloof Storage (Pty) Ltd (sample) (\"the Sublessor\")",
+          "quote": "entered into between Kloof Storage (Pty) Ltd (sample) (\"the Sublessor\") and Marula Office Supplies (Pty) Ltd",
           "file": "lakeside-sublease.pdf",
           "page": 1,
           "clause": "cl. 1.1"
@@ -14,9 +14,10 @@
       "agreementType": [
         {
           "value": "Warehouse sub-lease",
-          "quote": "SUB-LEASE OF WAREHOUSE UNIT",
+          "quote": "# **SUB-LEASE OF WAREHOUSE UNIT**",
           "file": "lakeside-sublease.pdf",
-          "page": 1
+          "page": 1,
+          "clause": "Title"
         }
       ],
       "agreementCategory": [
@@ -40,19 +41,10 @@
       "startDate": [
         {
           "value": "2026-08-01",
-          "quote": "This sub-lease commences on 1 August 2026 (\"the Commencement Date\").",
+          "quote": "This sub-lease commences on 1 August 2026 (\"the Commencement Date\")",
           "file": "lakeside-sublease.pdf",
           "page": 1,
           "clause": "cl. 3.1"
-        }
-      ],
-      "endDate": [
-        {
-          "value": "not_stated",
-          "quote": "The initial term is 24 (twenty-four) months from the Commencement Date.",
-          "file": "lakeside-sublease.pdf",
-          "page": 1,
-          "clause": "cl. 3.2"
         }
       ],
       "termMonths": [
@@ -70,7 +62,7 @@
             "kind": "automatic",
             "periodMonths": 12
           },
-          "quote": "This sub-lease renews automatically for successive periods of 12 (twelve) months unless cancelled in terms of clause 5.2.",
+          "quote": "This sub-lease renews automatically for successive periods of 12 (twelve) months",
           "file": "lakeside-sublease.pdf",
           "page": 2,
           "clause": "cl. 5.1"
@@ -83,7 +75,7 @@
             "unit": "days",
             "before": "renewal"
           },
-          "quote": "Either party may cancel this sub-lease by giving the other not less than 90 days written notice before the renewal date.",
+          "quote": "by giving the other not less than 90 days written notice before the renewal date.",
           "file": "lakeside-sublease.pdf",
           "page": 2,
           "clause": "cl. 5.2"
@@ -97,7 +89,7 @@
             "what": "rent",
             "vat": "excluded"
           },
-          "quote": "The monthly rent is R18 500.00 RECEIVED 13 MAR 2026 excluding VAT, payable in advance",
+          "quote": "The monthly rent is R18 500.00 RECEIVED 13 MAR 2026 excluding VAT",
           "file": "lakeside-sublease.pdf",
           "page": 1,
           "clause": "cl. 4.1"
@@ -127,11 +119,20 @@
       ],
       "scope": [
         {
-          "value": "Sub-let of warehouse unit for use as a warehouse and storage area only",
+          "value": "Sub-let of Unit 12 as a warehouse and storage area only",
           "quote": "for use as a warehouse and storage area only",
           "file": "lakeside-sublease.pdf",
           "page": 1,
           "clause": "cl. 2.1"
+        }
+      ],
+      "endDate": [
+        {
+          "value": "not_stated",
+          "quote": "The initial term is 24 (twenty-four) months from the Commencement Date.",
+          "file": "lakeside-sublease.pdf",
+          "page": 1,
+          "clause": "cl. 3.2"
         }
       ]
     },

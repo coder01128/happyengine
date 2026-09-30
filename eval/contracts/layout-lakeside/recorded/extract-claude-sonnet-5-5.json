@@ -14,7 +14,7 @@
       "agreementType": [
         {
           "value": "Warehouse sub-lease",
-          "quote": "# **SUB-LEASE OF WAREHOUSE UNIT**",
+          "quote": "SUB-LEASE OF WAREHOUSE UNIT",
           "file": "lakeside-sublease.pdf",
           "page": 1
         }
@@ -46,18 +46,18 @@
           "clause": "cl. 3.1"
         }
       ],
-      "termMonths": [
-        {
-          "value": 24,
-          "quote": "The initial term is 24 (twenty-four) months from the Commencement Date.",
-          "file": "lakeside-sublease.pdf",
-          "page": 1,
-          "clause": "cl. 3.2"
-        }
-      ],
       "endDate": [
         {
           "value": "not_stated",
+          "quote": "shall vacate on the last day of the sub-lease, leaving the Premises empty",
+          "file": "lakeside-sublease.pdf",
+          "page": 1,
+          "clause": "cl. 3.3"
+        }
+      ],
+      "termMonths": [
+        {
+          "value": 24,
           "quote": "The initial term is 24 (twenty-four) months from the Commencement Date.",
           "file": "lakeside-sublease.pdf",
           "page": 1,
@@ -127,7 +127,7 @@
       ],
       "scope": [
         {
-          "value": "Sub-let of warehouse unit for use as a warehouse and storage area only",
+          "value": "Sub-lease of warehouse unit for use as a warehouse and storage area only",
           "quote": "for use as a warehouse and storage area only",
           "file": "lakeside-sublease.pdf",
           "page": 1,

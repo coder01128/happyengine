@@ -246,7 +246,7 @@ async function main() {
 
   await contracts(orgA.id, orgB.id, uploader, reviewer, outsider);
   await contractsParse(orgA.id, uploader, reviewer, outsider);
-  await originalsKept(orgA.id, run.id, uploader);
+  await monthEndFiles(orgA.id, run.id, presetA.id, uploader, reviewer);
 }
 
 // Reading the pages: contracts-process with the fixture parser (PARSER unset), a saved parse of the demo
@@ -360,14 +360,58 @@ async function contractsParse(orgA: string, uploader: Person, reviewer: Person, 
   await admin.storage.from('parse-artifacts').remove([artifact, fixturePath]);
 }
 
-// Month-End keeps its own rule: documents can be replaced until the run is approved.
-async function originalsKept(orgA: string, runId: string, uploader: Person) {
-  console.log('\nMonth-End files can still be replaced');
-  const path = `${orgA}/${runId}/replace-me.csv`;
+// Month-End: files can be replaced until the run is approved, then they are frozen (20260930000008).
+async function monthEndFiles(orgA: string, approvedRunId: string, presetId: string, uploader: Person, reviewer: Person) {
+  console.log('\nMonth-End files can still be replaced before approval');
+  const draft = await must(
+    uploader.client
+      .from('runs')
+      .insert({ org_id: orgA, label: 'Replace test (sample)', period_end: '2026-07-31', opening_bank: 0, opening_ledger: 0, preset_id: presetId, created_by: uploader.id })
+      .select()
+      .single(),
+    'create draft run',
+  );
+  const path = `${orgA}/${draft.id}/bank.csv`;
   const up = await uploader.client.storage.from('documents').upload(path, 'a', { contentType: 'text/csv' });
   created.paths.push(path);
+  const row = await uploader.client.from('documents').insert({ org_id: orgA, run_id: draft.id, side: 'bank', storage_path: path, filename: 'bank.csv', uploaded_by: uploader.id }).select().single();
+  check('an uploader attaches a file to a draft run', !up.error && !row.error, [up.error, row.error]);
+  const delRow = await uploader.client.from('documents').delete().eq('id', row.data!.id).select();
   const rm = await uploader.client.storage.from('documents').remove([path]);
-  check('an uploader can still remove a Month-End file', !up.error && rm.data?.length === 1, [up.error, rm]);
+  check('an uploader can still remove it again (replace)', delRow.data?.length === 1 && rm.data?.length === 1, [delRow, rm]);
+  const up2 = await uploader.client.storage.from('documents').upload(path, 'b', { contentType: 'text/csv' });
+  const row2 = await uploader.client.from('documents').insert({ org_id: orgA, run_id: draft.id, side: 'bank', storage_path: path, filename: 'bank.csv', uploaded_by: uploader.id });
+  check('and attach the replacement', !up2.error && !row2.error, [up2.error, row2.error]);
+
+  console.log('\nApproved Month-End files are frozen');
+  const frozen = `${orgA}/${approvedRunId}/bank.csv`;
+  const original = await admin.storage.from('documents').download(frozen).then(async (r) => (r.data ? Buffer.from(await r.data.arrayBuffer()) : null));
+  const stillSame = async () => {
+    const now = await admin.storage.from('documents').download(frozen).then(async (r) => (r.data ? Buffer.from(await r.data.arrayBuffer()) : null));
+    return !!original && !!now && original.equals(now);
+  };
+  const docs = async () => (await must(admin.from('documents').select('id, filename').eq('run_id', approvedRunId), 'documents of the approved run')).length;
+  const docsBefore = await docs();
+  const rmU = await uploader.client.storage.from('documents').remove([frozen]);
+  check('an uploader cannot remove the statement of an approved run', !rmU.data?.length && (await stillSame()), rmU);
+  const rmR = await reviewer.client.storage.from('documents').remove([frozen]);
+  check('nor can a reviewer', !rmR.data?.length && (await stillSame()), rmR);
+  const over = await uploader.client.storage.from('documents').upload(frozen, 'not the original', { contentType: 'text/csv', upsert: true });
+  check('nor overwrite it', !!over.error && (await stillSame()), over.error);
+  const extra = `${orgA}/${approvedRunId}/extra.csv`;
+  const add = await uploader.client.storage.from('documents').upload(extra, 'x', { contentType: 'text/csv' });
+  check('nor add a file to its folder', !!add.error, add.error);
+  const delDoc = await uploader.client.from('documents').delete().eq('run_id', approvedRunId).select();
+  check('nor delete a document row', !delDoc.data?.length && (await docs()) === docsBefore, delDoc);
+  const insDoc = await uploader.client.from('documents').insert({ org_id: orgA, run_id: approvedRunId, side: 'bank', storage_path: `${orgA}/${approvedRunId}/late.csv`, filename: 'late.csv', uploaded_by: uploader.id });
+  check('nor attach a document', !!insDoc.error, insDoc.error);
+  const srvDel = await admin.from('documents').delete().eq('run_id', approvedRunId);
+  check('the server cannot delete one either (guard trigger)', !!srvDel.error && /frozen/.test(srvDel.error.message) && (await docs()) === docsBefore, srvDel.error);
+  const srvUpd = await admin.from('documents').update({ filename: 'renamed.csv' }).eq('run_id', approvedRunId);
+  check('or rename one', !!srvUpd.error && /frozen/.test(srvUpd.error.message), srvUpd.error);
+  const srvIns = await admin.from('documents').insert({ org_id: orgA, run_id: approvedRunId, side: 'ledger', storage_path: `${orgA}/${approvedRunId}/late2.csv`, filename: 'late2.csv' });
+  check('or add one', !!srvIns.error && /frozen/.test(srvIns.error.message), srvIns.error);
+  check('the original bytes are unchanged and both documents remain', (await stillSame()) && (await docs()) === docsBefore);
 }
 
 // Contracts tables: clients create agreements and attach files; pipeline output is written here with

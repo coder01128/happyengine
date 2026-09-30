@@ -187,3 +187,22 @@ Other flags worth knowing: the D16 flag fired once (demo C4, run 2: the rental l
 ### D23 rule tested on the recordings (not built)
 
 "Possibly incomplete": for a recorded fee, take each text row (line) of the cited section; if the row holds a Rand amount and none of the row's amounts is in any recorded amount line or the deposit, flag "possibly incomplete: R… is not in any fee line". A row that already holds a recorded amount is treated as covered (this stops the table's "Rate / m²" column from being flagged). On the D17 recordings: 44 fee fields checked, 8 flagged, all 8 real (7 C4 copy charges left out, 1 C5 rate card with only 3 of 7 rows), 0 false. On the D18 recordings: 48 checked, 5 flagged, all 5 real (the C4 copy charges as words), 0 false. Judging the whole cited block instead of the row falsely flagged 9 C1 lease rows (the "Rate / m²" column) in every set.
+
+## D24–D25 live result (30 Sep 2026): possibly-incomplete flag, charge names without period qualifiers
+
+Fourth set of live recordings (the D18–D22 set is in git history at commit 7c8ceed). New in force: the "possibly incomplete" flag with the row rule (D24), charge names that ignore bracketed period qualifiers such as "(year 1)" and "(months 13–24)", and "one name per charge" in the prompt (D25). 137 field answers per run. Claude used 459,429 input and 78,072 output tokens; 0 LlamaParse credits.
+
+| Per run | Run 1 | Run 2 | Run 3 |
+| --- | --- | --- | --- |
+| Fields correct (of 137) | 130 | 131 | 130 |
+| Same, without the category (of 121) | 114 | 115 | 114 |
+| Grounding | 251/251 | 256/256 | 248/248 |
+| Highlights on the expected quote | 152/155 | 153/156 | 153/156 |
+| Unexpected flags | 10 | 8 | 8 |
+| Silent errors (wrong, green chip, no flag on the field) | 0 | 0 | 0 |
+
+- **Every wrong field was flagged** (7, 6 and 7 per run). The C1 lease is now right on fee and fee change in all 9 copy-runs (fee change 30/30). The 8% fee-change error had exactly one cause: Claude named the rent lines "rent (year 1)" and so on in 2 of the 9 C1 runs of the previous set, so the merge saw three charges; with the qualifiers ignored, the same two recordings derive the three steps.
+- **Possibly incomplete fired 8 times in 9 C4 runs, all real** (the copy charges recorded as one line of words, R0.19 and R1.45 in no amount line). The 9th C4 run was flagged by the refused-wording rule. No false flags on the 48 recorded fees.
+- The "unexpected" flags are the true gaps the answer keys do not list (the scanned C4's unstated renewal and notice, the C4 possibly-incomplete flags, the C5 "fee change not quantified", the scanned C5 blank).
+- Category 48/48 again. Fee 40/48 (83.3%): all 8 misses are the C4 copy charges as words, flagged.
+- Remaining limits, unchanged: OCR does not read the C5 blank as a blank (3 of 3 runs); the scanned C4 end date is quoted without its day (value check refuses, flagged); no word positions for text that crosses columns in the L1 sample.

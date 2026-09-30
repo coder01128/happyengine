@@ -14,9 +14,10 @@
       "agreementType": [
         {
           "value": "Warehouse sub-lease",
-          "quote": "# **SUB-LEASE OF WAREHOUSE UNIT**",
+          "quote": "SUB-LEASE OF WAREHOUSE UNIT",
           "file": "lakeside-sublease.pdf",
-          "page": 1
+          "page": 1,
+          "clause": "Title"
         }
       ],
       "agreementCategory": [

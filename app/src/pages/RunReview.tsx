@@ -115,6 +115,9 @@ export function RunReview({ runId, membership, userId }: { runId: string; member
         </div>
         <Badge {...RUN_STATUS[run.status]!} />
       </div>
+      {run.status === 'approved' && (
+        <p className="muted">This reconciliation is approved. Its statement and cash book files are frozen: they cannot be replaced or removed.</p>
+      )}
       {run.status === 'draft' || !data.state || !run.preset_snapshot ? (
         <DraftPanel run={run} documents={data.documents} membership={membership} onChanged={reload} />
       ) : (

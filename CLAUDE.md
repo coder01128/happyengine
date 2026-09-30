@@ -37,6 +37,7 @@ These are blocked in `.claude/settings.json` for the Read, Grep and Glob tools. 
 | `supabase/migrations/…_month_end.sql`, `…_split_suggestions.sql` | presets, runs, documents, lines, matches, exceptions, journals, decisions, checklist | Month-End (the presets table is shared) |
 | `supabase/migrations/…_contracts.sql` | agreements, agreement_files, parsed_pages, agreement_fields, key_dates, review_items, reminder_drafts; `orgs.offshore_processing_approved`; `timeline_events.agreement_id` | Contracts (the org flag is shared) |
 | `supabase/migrations/…_parse_positions.sql` | Parse bookkeeping, originals kept as uploaded (no client overwrite or delete), private `parse-artifacts` bucket, the `contracts_*` parse-step functions | Contracts |
+| `supabase/migrations/…_freeze_approved_run_files.sql` | Approved Month-End runs freeze their files: no storage delete or add in the run folder, and a guard trigger on `documents` that refuses insert, update and delete for every role | Month-End |
 | `supabase/functions/_shared/http.ts` | Auth, role checks, JSON helpers for edge functions | Shared |
 | `supabase/functions/_shared/core.ts`, `month-end.ts` | The single place edge functions import package code from | Shared |
 | `app/src/supabase.ts`, `components/Modal.tsx`, `components/ui.tsx`, `pages/SignIn.tsx`, `styles.css` | App shell | Shared |
