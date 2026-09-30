@@ -306,8 +306,9 @@ textarea::placeholder,input::placeholder{color:var(--muted);opacity:1}
 .vw-quote{margin:10px 0 0;padding:8px 12px;border-left:4px solid var(--hl-line);background:var(--hl-bg);border-radius:6px;font-size:15px;line-height:1.45;overflow-wrap:anywhere}
 .vw-notice{font-size:14px;margin-top:8px}
 .vw-warn{font-weight:600;color:var(--mis)}
-.vw-swatch{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;font-size:14px;font-weight:600;margin-top:10px}
-.vw-swatch .sw{flex:none;width:18px;height:14px;border-radius:3px;border:2.5px solid #B7791F;background:rgba(255,200,61,.35)}
+.vw-truth{font-size:14px;font-weight:600;margin-top:10px}
+.vw-caption{display:flex;align-items:center;gap:10px;margin:0 0 8px;padding:8px 12px;border-radius:10px;background:var(--hl-bg);border-left:4px solid var(--hl-line);font-size:14px;font-weight:600;line-height:1.35;overflow-wrap:anywhere}
+.vw-caption .sw{flex:none;width:18px;height:14px;border-radius:3px;border:2.5px solid #B7791F;background:rgba(255,200,61,.35)}
 .vw-nav{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 10px}
 .vw-scroll{position:relative;height:min(58vh,640px);overflow:auto;overscroll-behavior:contain;background:var(--fill);border-radius:14px;padding:12px}
 .vw-loading{padding:12px}
@@ -315,9 +316,6 @@ textarea::placeholder,input::placeholder{color:var(--muted);opacity:1}
 .vw-page canvas,.vw-page img{position:absolute;inset:0;width:100%;height:100%;display:block}
 .vw-hl{position:absolute;z-index:3;box-sizing:border-box;border:3px solid #B7791F;background:rgba(255,200,61,.32);border-radius:3px;animation:vw-pulse 1.1s var(--spring) 1}
 .vw-hl:focus-visible{outline:3px solid #15231D;outline-offset:3px}
-.vw-hl .hl-tag{position:absolute;left:-3px;bottom:calc(100% + 5px);display:inline-block;max-width:min(380px,80vw);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
-  background:#FFC83D;color:#15231D;font-size:13px;font-weight:700;line-height:1.3;padding:2px 8px;border-radius:4px}
-.vw-hl .hl-tag.below{bottom:auto;top:calc(100% + 5px)}
 @keyframes vw-pulse{0%{box-shadow:0 0 0 0 rgba(183,121,31,.65)}70%{box-shadow:0 0 0 14px rgba(183,121,31,0)}100%{box-shadow:0 0 0 0 rgba(183,121,31,0)}}
 @media (max-width:600px){
   .vw-scroll{height:min(52vh,520px);padding:8px}

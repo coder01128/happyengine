@@ -200,14 +200,8 @@ function PageStack({ doc, source, regions, zoom, onPage }: { doc: ViewerDocument
                     height: `${r.box.h * 100}%`,
                     ...(r.box.r ? { transform: `rotate(${r.box.r}deg)` } : {}),
                   }}
-                >
-                  {isFirst && (
-                    <span className={`hl-tag${r.box.y < 0.05 ? ' below' : ''}`}>
-                      {source.label}
-                      {source.approximate ? ' · position approximate' : ''}
-                    </span>
-                  )}
-                </div>
+                />
+
               );
             })}
           </div>
@@ -237,6 +231,11 @@ export function SourceViewer({ sources, documents, initialId, onClose }: { sourc
 
   useEffect(() => setCurrent(firstRegion(regions)?.page ?? source.claimedPage ?? source.page), [source, regions]);
 
+  // On a phone the notes above the page fill the dialog, so bring the caption and the page into view (the text above stays a scroll away).
+  useEffect(() => {
+    if (window.matchMedia('(max-width: 600px)').matches) document.querySelector('.vw-caption')?.scrollIntoView({ block: 'start' });
+  }, [source.id]);
+
   const goTo = (n: number) => {
     const clamped = Math.min(Math.max(n, 1), total);
     setCurrent(clamped);
@@ -244,6 +243,7 @@ export function SourceViewer({ sources, documents, initialId, onClose }: { sourc
   };
 
   const located = source.state === 'found' || source.state === 'value_mismatch';
+  const caption = `Showing ${chipText(source)} · ${source.label}${located ? (source.approximate ? ' · position approximate' : '') : ' · no highlight'}`;
   const others = source.flag ? sources.filter((s) => s.id !== source.id && s.flag === source.flag) : [];
   const status =
     source.state === 'found' && source.flag ? (
@@ -318,11 +318,7 @@ export function SourceViewer({ sources, documents, initialId, onClose }: { sourc
         )}
         {source.state === 'value_mismatch' && <p className="vw-notice vw-warn">{source.reason} The wording is highlighted so you can check it.</p>}
         {source.approximate && located && <p className="vw-notice">Scanned copy: the highlight’s position is approximate.</p>}
-        <p className="vw-swatch">
-          <span className="sw" aria-hidden="true" />
-          {located ? `Highlighted: page ${source.page}${source.clause && source.clauseChecked ? `, ${source.clause}` : ''}` : 'No highlight for this source.'}
-          <span className="muted"> The signed agreement is the source of truth.</span>
-        </p>
+        <p className="vw-truth muted">The signed agreement is the source of truth.</p>
       </div>
 
       <div className="vw-nav">
@@ -340,6 +336,12 @@ export function SourceViewer({ sources, documents, initialId, onClose }: { sourc
         </button>
         <span className="vw-zoom" aria-live="polite">Zoom {Math.round(zoom * 100)}%</span>
       </div>
+
+      {/* The one place the source's name is shown: not on the page, where it could cover the text. Announced when it changes. */}
+      <p className="vw-caption" role="status" aria-live="polite" aria-atomic="true">
+        <span className="sw" aria-hidden="true" />
+        <span>{caption}</span>
+      </p>
 
       {doc ? <PageStack key={source.id} doc={doc} source={source} regions={regions} zoom={zoom} onPage={setCurrent} /> : <p className="err-box">The file for this source isn’t available.</p>}
     </Modal>
