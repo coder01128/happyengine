@@ -3,7 +3,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { addScore, emptyScore, scoreAgreement, type Boxes, type ExpectedAgreement } from '../../../eval/contracts/score.ts';
+import { addScore, emptyScore, sameAnswer, scoreAgreement, type Boxes, type ExpectedAgreement } from '../../../eval/contracts/score.ts';
 import type { ParsedDocument, ParsedPage, Word } from '../../documents/src/index.ts';
 import { buildRecord, validateContractsPreset, type Candidate } from '../src/index.ts';
 
@@ -77,5 +77,26 @@ describe('fields', () => {
 
     const none = scoreAgreement('a', buildRecord({ id: 'a', ref: 'A', files: ['main.pdf'], parsed: { 'main.pdf': DOC }, extraction: { fields: {}, amendments: [] }, preset }), expectedFor('2026-03-01'), '2026-10-14', preset, { 'main.pdf': DOC });
     expect(none.fields.misses[0]).toMatch(/the extractor gave no candidate for this field/);
+  });
+});
+
+describe('sameAnswer: free-text values are compared loosely', () => {
+  const expected = { text: 'Rates per Schedule A' };
+  it.each([
+    ['the same words', { text: 'Rates per Schedule A' }],
+    ['other case and punctuation', { text: 'rates, per schedule a.' }],
+    ['the expected words plus more', { text: 'Per-service rates in Schedule A (e.g. Same-day within city R185.00), excluding VAT' }],
+  ])('accepts %s', (_name, got) => expect(sameAnswer(got, expected)).toBe(true));
+
+  it.each([
+    ['a different schedule', { text: 'Rates per Schedule B' }],
+    ['a word missing', { text: 'Rates in Schedule A' }],
+  ])('refuses %s', (_name, got) => expect(sameAnswer(got, expected)).toBe(false));
+
+  it('leaves every other kind of value to an exact comparison', () => {
+    expect(sameAnswer({ cents: 485000, per: 'month' }, { cents: 485000, per: 'month' })).toBe(true);
+    expect(sameAnswer({ cents: 485000, per: 'month' }, { cents: 585000, per: 'month' })).toBe(false);
+    expect(sameAnswer('2026-03-01', '2026-03-01')).toBe(true);
+    expect(sameAnswer('2026-03-01', '2026-03-02')).toBe(false);
   });
 });

@@ -52,6 +52,9 @@ These are blocked in `.claude/settings.json` for the Read, Grep and Glob tools. 
 - A service package never imports another service package. Services share code only through `core` and `documents`.
 - Inside `packages/`, import other packages by **relative path to their `src/index.ts`**, not by package name. The Supabase edge runtime (Deno) doesn't resolve npm workspace names.
 - Edge functions import engine code only through files in `supabase/functions/_shared/`.
+- **The storage backend must be swappable.** We may later ship a local, browser-only version with no Supabase. So:
+  - All engine logic (parsing, extraction, grounding, positions, rules, key dates, scoring) stays free of Supabase imports. Everything under `packages/` already is; keep it that way. Storage and jobs are reached through ports (`ParseStore` in `packages/contracts/src/parse-flow.ts` is the pattern).
+  - Screens read and write only through one data-access layer, never by calling Supabase directly (no `supabase.from`, `.rpc`, `.functions.invoke`, `.storage` or `.auth` in a page or component). The backend can then be swapped for a local file store in that one place. Applies to brief 07 and everything after. The Month-End screens (`App.tsx`, `RunReview.tsx`, `Runs.tsx`, `Exceptions.tsx`, `DraftPanel.tsx`, `SignIn.tsx`) still call Supabase directly; don't copy that pattern into new screens.
 
 ## How to work
 

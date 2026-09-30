@@ -157,6 +157,16 @@ describe('case 7: a repeated quote', () => {
     const pages = doc('Fees apply per the schedule below.', 'Fees apply per the schedule below.');
     expect(groundInDocument('Fees apply per the schedule below', pages, 1, MIN)).toMatchObject({ status: 'grounded', page: 1, match: 'exact' });
   });
+  it('firstOfMany takes the first place instead (for a title or a scope, where any place will do), scored 0.99 as repeated', () => {
+    const twice = groundInDocument('excluding VAT', doc('The Rent excluding VAT is payable. The Deposit excluding VAT is refundable.'), 1, MIN, { firstOfMany: true });
+    expect(twice).toMatchObject({ status: 'grounded', page: 1, match: 'exact', score: 0.99 });
+    expect(twice.start).toBe(9);
+    const pages = doc('Cover', 'Fees apply per the schedule below.', 'Cover again', 'Fees apply per the schedule below.');
+    expect(groundInDocument('Fees apply per the schedule below', pages, 1, MIN, { firstOfMany: true })).toMatchObject({ status: 'grounded', page: 2, claimedPage: 1, score: 0.99 });
+  });
+  it('firstOfMany still says not found for a quote that is nowhere', () => {
+    expect(groundInDocument('No such wording anywhere in this document', doc('Cover', 'Other text'), 1, MIN, { firstOfMany: true }).status).toBe('not_found');
+  });
   it('a word repeated in a longer, unique quote is not ambiguous', () => {
     expect(groundInDocument('The Rent excluding VAT is payable', doc('The Rent excluding VAT is payable. The Deposit excluding VAT is refundable.'), 1, MIN).status).toBe('grounded');
   });

@@ -125,6 +125,21 @@ function unionBox(list: Box[]): Box {
 
 const show = (v: unknown) => (v === undefined ? 'nothing' : JSON.stringify(v));
 
+const wordsOf = (t: string) => t.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
+const isText = (v: unknown): v is { text: string } => !!v && typeof v === 'object' && typeof (v as { text?: unknown }).text === 'string' && Object.keys(v).length === 1;
+
+/**
+ * Whether a recorded value is the expected one. Free-text values ({ text }) are worded differently on every run,
+ * so they match when every word of the expected text is in the recorded text. Everything else must be equal.
+ */
+export function sameAnswer(got: CandidateValue, expected: CandidateValue): boolean {
+  if (isText(got) && isText(expected)) {
+    const have = new Set(wordsOf(got.text));
+    return wordsOf(expected.text).every((w) => have.has(w));
+  }
+  return sameValue(got, expected);
+}
+
 export function scoreAgreement(
   id: string,
   record: AgreementRecord,
@@ -152,7 +167,7 @@ export function scoreAgreement(
     } else if (e.value === 'not_stated' || e.value === 'blank') {
       ok = f?.status === e.value;
     } else {
-      ok = f?.status === 'recorded' && e.value !== undefined && sameValue(f.value!, e.value);
+      ok = f?.status === 'recorded' && e.value !== undefined && sameAnswer(f.value!, e.value);
     }
     if (ok && e.supersedes) {
       ok = !!f?.candidates.some((c) => c.superseded && sameValue(c.value, e.supersedes!.value));

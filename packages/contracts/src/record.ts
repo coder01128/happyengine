@@ -66,10 +66,10 @@ function findPage(parsed: Record<string, ParsedDocument>, file: string, page: nu
 }
 
 /** The quote is looked for on its claimed page first, then across a page break, then anywhere else in the file. */
-function groundSource(c: { quote: string; file: string; page: number; clause?: string }, parsed: Record<string, ParsedDocument>, preset: ContractsPreset): Source {
+function groundSource(c: { quote: string; file: string; page: number; clause?: string }, parsed: Record<string, ParsedDocument>, preset: ContractsPreset, descriptive = false): Source {
   const pages = parsed[c.file]?.pages ?? [];
   const grounding: GroundingResult = pages.length
-    ? groundInDocument(c.quote, pages, c.page, preset.grounding.minScore, { ignoreTokens: preset.grounding.ignoreTokens })
+    ? groundInDocument(c.quote, pages, c.page, preset.grounding.minScore, { ignoreTokens: preset.grounding.ignoreTokens, firstOfMany: descriptive })
     : { status: 'not_found', score: 0, page: c.page, boxes: [] };
   const found = grounding.status === 'grounded';
   // Where it really is. If it isn't found, the page that was claimed.
@@ -125,7 +125,7 @@ interface Resolved {
 }
 
 /** Applies the rules to one field's candidates, in the brief's order. */
-function resolveField(key: FieldKey, label: string, candidates: RecordCandidate[], parsed: Record<string, ParsedDocument>, required: boolean): Resolved {
+function resolveField(key: FieldKey, label: string, candidates: RecordCandidate[], parsed: Record<string, ParsedDocument>, required: boolean, descriptive: boolean): Resolved {
   const field: RecordField = { key, label, status: 'recorded', candidates };
   const items: ReviewItem[] = [];
   const active = candidates.map((c, i) => ({ c, i })).filter(({ c }) => isSupported(c) && !c.superseded);
@@ -143,6 +143,13 @@ function resolveField(key: FieldKey, label: string, candidates: RecordCandidate[
     field.value = 'not_stated';
     field.current = active[0]!.i;
     if (required) items.push({ id: `unclear:${key}`, kind: 'unclear', fieldKey: key, summary: `${label} not stated`, sources: active.map(({ c }) => toSource(c)) });
+    return { field, items };
+  }
+
+  // Descriptive wording (a type, a scope): different wordings are all kept as sources, the first is shown, nothing is flagged.
+  if (descriptive && valued.every(({ c }) => c.value !== 'blank')) {
+    field.current = valued[0]!.i;
+    field.value = valued[0]!.c.value;
     return { field, items };
   }
 
@@ -352,7 +359,7 @@ export function buildRecord(input: BuildInput): AgreementRecord {
     candidates.set(
       key,
       list.map((c) => {
-        const source = groundSource(c, parsed, preset);
+        const source = groundSource(c, parsed, preset, labels.get(key)?.descriptive === true);
         // Only a quote found in one place has wording to check the value against.
         const valueCheck = isGrounded(source) ? checkValue(key, c.value, matchedText(source, parsed)) : undefined;
         return { ...source, ...(valueCheck ? { valueCheck } : {}), value: c.value };
@@ -392,7 +399,7 @@ export function buildRecord(input: BuildInput): AgreementRecord {
     const list = candidates.get(key);
     if (!list) continue;
     const spec = labels.get(key);
-    const { field, items } = resolveField(key, spec?.label ?? key, list, parsed, spec?.required ?? false);
+    const { field, items } = resolveField(key, spec?.label ?? key, list, parsed, spec?.required ?? false, spec?.descriptive === true);
     fields[key] = field;
     reviewItems.push(...items);
   }

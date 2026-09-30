@@ -5,7 +5,7 @@
   "grounding": { "minScore": 0.9, "ignoreTokens": ["sample", "copy", "draft", "specimen"] },
   "fields": [
     { "key": "counterparty", "label": "Counterparty", "required": false },
-    { "key": "agreementType", "label": "Agreement type", "required": false },
+    { "key": "agreementType", "label": "Agreement type", "required": false, "descriptive": true },
     { "key": "premises", "label": "Premises", "required": false },
     { "key": "startDate", "label": "Start", "required": false },
     { "key": "endDate", "label": "End", "required": false },
@@ -15,7 +15,7 @@
     { "key": "fee", "label": "Fee", "required": false },
     { "key": "feeChange", "label": "Fee changes", "required": false },
     { "key": "deposit", "label": "Deposit", "required": false },
-    { "key": "scope", "label": "Scope", "required": false }
+    { "key": "scope", "label": "Scope", "required": false, "descriptive": true }
   ],
   "alertWindows": { "attention": 30, "upcoming": 90 },
   "reviewOptions": [

@@ -51,6 +51,8 @@ export interface GroundOptions {
   /** Stray words a watermark or stamp drops into the text ("SAMPLE", "COPY"). A page word on this list is skipped
    *  when matching, unless the quote itself contains that word. */
   ignoreTokens?: string[];
+  /** groundInDocument only: a quote that is in several places is taken at the first one (score 0.99) instead of refused as ambiguous. For descriptive wording (a title, a scope) where any of the places is the right one. */
+  firstOfMany?: boolean;
 }
 
 /** Normalised text, with the page.text range each normalised character came from. */
@@ -440,8 +442,8 @@ export function groundInDocument(quote: string, pages: ParsedPage[], claimedPage
   if (claimed) {
     const { hits, best: b } = locate(q, norm(claimed), minScore, ignore);
     best = b;
-    if (hits.length > 1) return { status: 'ambiguous', score: 1, page: claimedPage, boxes: [], pages: [claimedPage] };
-    if (hits.length === 1) return groundedOn(claimed, norm(claimed), hits[0]!, 1);
+    if (hits.length > 1 && !options?.firstOfMany) return { status: 'ambiguous', score: 1, page: claimedPage, boxes: [], pages: [claimedPage] };
+    if (hits.length >= 1) return groundedOn(claimed, norm(claimed), hits[0]!, hits.length);
   }
 
   // 2. Across a page break next to the claimed page.
@@ -462,10 +464,10 @@ export function groundInDocument(quote: string, pages: ParsedPage[], claimedPage
     for (const hit of hits) elsewhere.push({ page: p, hit, count: hits.length });
   }
   const pagesHit = [...new Set(elsewhere.map((e) => e.page.page))];
-  if (elsewhere.length > 1) return { status: 'ambiguous', score: 1, page: claimedPage, boxes: [], pages: pagesHit };
-  if (elsewhere.length === 1) {
+  if (elsewhere.length > 1 && !options?.firstOfMany) return { status: 'ambiguous', score: 1, page: claimedPage, boxes: [], pages: pagesHit };
+  if (elsewhere.length >= 1) {
     const e = elsewhere[0]!;
-    return withClaim(groundedOn(e.page, norm(e.page), e.hit, 1));
+    return withClaim(groundedOn(e.page, norm(e.page), e.hit, elsewhere.length));
   }
 
   // A quote across a page break away from the claimed page.

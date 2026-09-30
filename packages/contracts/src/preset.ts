@@ -21,8 +21,10 @@ export interface ContractsPreset {
     /** Stray words a watermark or stamp drops into the text ("SAMPLE", "COPY"). Skipped when matching a quote, unless the quote itself has the word. */
     ignoreTokens?: string[];
   };
-  /** Display order in the register. A required field that isn't found is flagged for review. */
-  fields: { key: string; label: string; required: boolean }[];
+  /** Display order in the register. A required field that isn't found is flagged for review. descriptive: free-text wording
+   *  (a type, a scope). Different wordings, or a quote in several places, are recorded with every source and never flagged;
+   *  the first supported wording is shown. Dates, money and notice are never descriptive. */
+  fields: { key: string; label: string; required: boolean; descriptive?: boolean }[];
   /** Days before a key date when it shows as "Needs attention" and "Upcoming". */
   alertWindows: { attention: number; upcoming: number };
   /** Choices a reviewer has for a flagged term, alphabetical by label. singleValueOnly: not offered on conflicts. */
@@ -81,6 +83,7 @@ function problemsWith(p: unknown): string[] {
         problems.push(`fields[${i}]: needs key, label and required (true or false)`);
         return;
       }
+      need(f.descriptive === undefined || typeof f.descriptive === 'boolean', `fields.${f.key}.descriptive: must be true or false`);
       need(!seen.has(f.key), `fields.${f.key}: listed twice`);
       seen.add(f.key);
     });
