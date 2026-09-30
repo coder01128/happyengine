@@ -193,3 +193,83 @@ describe('unreadable pages', () => {
     expect(groundInDocument('The fee is R4 850.00 per month', pages, 1, MIN).status).toBe('grounded');
   });
 });
+
+// Parsers are sometimes wrong about where words are. A highlight in the wrong place is worse than none.
+describe('positions that cannot be trusted', () => {
+  /** A one-line page whose word boxes are given as [x, y] per word, 40 wide and 12 high. */
+  const line = (text: string, at: ([number, number] | null)[]): ParsedPage => {
+    const words: Word[] = [];
+    let i = 0;
+    for (const m of text.matchAll(/\S+/g)) {
+      const pos = at[i++];
+      if (pos) words.push({ text: m[0], start: m.index, end: m.index + m[0].length, box: { x: pos[0], y: pos[1], w: 40, h: 12 } });
+    }
+    return { page: 1, width: 600, height: 800, text, words };
+  };
+  const QUOTE = 'The Sublessee shall pay a deposit of R37 000.00 on signature';
+
+  it('a quote whose words have no positions is found but not highlighted (marked unpositioned)', () => {
+    const page = line(`3.2 ${QUOTE}`, [[10, 10]]); // only the clause number has a box
+    const r = groundInDocument(QUOTE, [page], 1, MIN);
+    expect(r).toMatchObject({ status: 'grounded', match: 'exact', unpositioned: true, boxes: [] });
+    expect(r.fractions).toEqual([]);
+  });
+
+  it('a quote with fewer than 60% of its words positioned is not highlighted, with 60% or more it is', () => {
+    const at = (n: number) => Array.from({ length: 10 }, (_, i) => (i < n ? ([10 + i * 45, 100] as [number, number]) : null));
+    const text = 'one two three four five six seven eight nine ten';
+    expect(groundInDocument(text, [line(text, at(5))], 1, MIN)).toMatchObject({ unpositioned: true, boxes: [] });
+    const six = groundInDocument(text, [line(text, at(6))], 1, MIN);
+    expect(six.unpositioned).toBeUndefined();
+    expect(six.boxes).toHaveLength(1);
+  });
+
+  it('a word placed far from the rest of its sentence is left out of the highlight, and the count is kept', () => {
+    // "deposit" was given a box 82 points above the others, as happened beside a rubber stamp.
+    const at: [number, number][] = [[10, 300], [50, 301], [90, 300], [130, 301], [170, 218], [210, 301], [250, 300], [290, 301], [330, 300], [370, 301]];
+    const r = groundInDocument(QUOTE, [line(QUOTE, at)], 1, MIN);
+    expect(r).toMatchObject({ status: 'grounded', trimmed: 1 });
+    expect(r.boxes).toHaveLength(1);
+    expect(r.boxes[0]!.y).toBeGreaterThan(290);
+    expect(r.boxes[0]!.h).toBeLessThan(30);
+  });
+
+  it('does not trim a quote that wraps over several lines, or one that runs from the foot of one column to the top of the next', () => {
+    const wrap: [number, number][] = [[10, 100], [50, 100], [90, 100], [130, 100], [170, 100], [10, 114], [50, 114], [90, 114], [130, 114], [170, 114]];
+    expect(groundInDocument(QUOTE, [line(QUOTE, wrap)], 1, MIN).trimmed).toBeUndefined();
+    const columns: [number, number][] = [[10, 362], [50, 362], [90, 362], [130, 362], [309, 118], [349, 118], [389, 118], [429, 118], [469, 118], [509, 118]];
+    const r = groundInDocument(QUOTE, [line(QUOTE, columns)], 1, MIN);
+    expect(r.trimmed).toBeUndefined();
+    expect(r.boxes).toHaveLength(2);
+  });
+
+  it('a quote of fewer than four positioned words is never trimmed (nothing to compare against)', () => {
+    const text = 'deposit of R37';
+    const r = groundInDocument(text, [line(text, [[10, 300], [50, 218], [90, 300]])], 1, MIN);
+    expect(r.trimmed).toBeUndefined();
+    expect(r.boxes.length).toBeGreaterThan(0);
+  });
+});
+
+describe('tilted words', () => {
+  const words = (rs: (number | undefined)[]): ParsedPage => {
+    const text = 'The Sublessee shall pay a deposit of R37 000.00';
+    const ws: Word[] = [];
+    let i = 0;
+    for (const m of text.matchAll(/\S+/g)) ws.push({ text: m[0], start: m.index, end: m.index + m[0].length, box: { x: 10 + i * 45, y: 300, w: 40, h: 12, ...(rs[i] ? { r: rs[i] } : {}) } }), i++;
+    return { page: 1, width: 600, height: 800, text, words: ws };
+  };
+  const QUOTE = 'The Sublessee shall pay a deposit of R37 000.00';
+
+  it('a tilt under 3 degrees (scan skew) counts as upright: the line is merged into one box', () => {
+    const r = groundInDocument(QUOTE, [words([1.2, undefined, 0.4, undefined, undefined, 2.9, undefined, undefined, undefined])], 1, MIN);
+    expect(r.boxes).toHaveLength(1);
+    expect(r.boxes[0]!.r).toBeUndefined();
+  });
+
+  it('a few tilted words (a stamp) do not stop the upright words being merged into one line', () => {
+    const r = groundInDocument(QUOTE, [words([undefined, undefined, undefined, undefined, 9, 9, undefined, undefined, undefined])], 1, MIN);
+    expect(r.boxes).toHaveLength(3); // one merged line of upright words + the two tilted words as they are
+    expect(r.boxes.filter((b) => b.r === 9)).toHaveLength(2);
+  });
+});

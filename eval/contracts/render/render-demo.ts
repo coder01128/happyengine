@@ -302,7 +302,9 @@ async function main() {
 
     writeFileSync(join(digitalDir, 'boxes.json'), JSON.stringify(digitalBoxes, null, 2) + '\n');
     writeFileSync(join(scanDir, 'boxes.json'), JSON.stringify(scanBoxes, null, 2) + '\n');
-    for (const f of ['expected.json', 'sample.json']) copyFileSync(join(digitalDir, f), join(scanDir, f));
+    copyFileSync(join(digitalDir, 'expected.json'), join(scanDir, 'expected.json'));
+    // The scan copy is read at the preset's scanned tier: the eval reads "scanned": true.
+    writeFileSync(join(scanDir, 'sample.json'), JSON.stringify({ ...JSON.parse(readFileSync(join(digitalDir, 'sample.json'), 'utf8')), scanned: true }, null, 2) + '\n');
 
     // Every data-field that expected.json points at must have a box.
     const expected = JSON.parse(readFileSync(join(digitalDir, 'expected.json'), 'utf8'));

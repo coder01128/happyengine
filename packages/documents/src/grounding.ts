@@ -4,7 +4,7 @@
 //
 // Dependency-free (types and page fractions only), so edge functions and Node scripts import the same code.
 
-import { toFraction, type FractionBox } from './positions.ts';
+import { isTilted, toFraction, type FractionBox } from './positions.ts';
 import type { Box, ParsedPage } from './types.ts';
 
 /** The part of a quote that sits on a following page, when the quote runs across a page break. */
@@ -41,6 +41,10 @@ export interface GroundingResult {
   pages?: number[];
   /** Why, when not grounded and the reason isn't just "not there". */
   note?: string;
+  /** Words left out of the boxes because their position looked wrong (far from the rest of the quote). The highlight is approximate. */
+  trimmed?: number;
+  /** The quote is on the page but too few of its words have a position to draw a highlight. */
+  unpositioned?: true;
 }
 
 export interface GroundOptions {
@@ -243,22 +247,27 @@ function fuzzyFind(q: Token[], t: Token[]): { score: number; first: number; last
 
 /**
  * Merge word boxes into one box per visual line: same line when centres are within half a line-height.
- * Rotated words (a box with r) are not merged: a rectangle round several rotated words would not follow them.
+ * Tilted words (a stamp, a rotated label) are not merged: a rectangle round them would not follow them. They are
+ * returned as they are, after the merged lines; a tilt under 3 degrees counts as upright.
  */
 export function lineBoxes(boxes: Box[]): Box[] {
-  if (boxes.some((b) => b.r)) return [...boxes].sort((a, c) => a.y + a.h / 2 - (c.y + c.h / 2) || a.x - c.x);
+  const tilted = boxes.filter(isTilted);
+  const flat = boxes.filter((b) => !isTilted(b)).map(({ x, y, w, h }) => ({ x, y, w, h }));
   const lines: Box[][] = [];
-  for (const b of [...boxes].sort((a, c) => a.y + a.h / 2 - (c.y + c.h / 2) || a.x - c.x)) {
+  for (const b of flat.sort((a, c) => a.y + a.h / 2 - (c.y + c.h / 2) || a.x - c.x)) {
     const line = lines[lines.length - 1];
     const ref = line?.[0];
     if (ref && Math.abs(b.y + b.h / 2 - (ref.y + ref.h / 2)) <= Math.min(ref.h, b.h) / 2) line!.push(b);
     else lines.push([b]);
   }
-  return lines.map((line) => {
-    const x = Math.min(...line.map((b) => b.x));
-    const y = Math.min(...line.map((b) => b.y));
-    return { x, y, w: Math.max(...line.map((b) => b.x + b.w)) - x, h: Math.max(...line.map((b) => b.y + b.h)) - y };
-  });
+  return [
+    ...lines.map((line) => {
+      const x = Math.min(...line.map((b) => b.x));
+      const y = Math.min(...line.map((b) => b.y));
+      return { x, y, w: Math.max(...line.map((b) => b.x + b.w)) - x, h: Math.max(...line.map((b) => b.y + b.h)) - y };
+    }),
+    ...tilted.sort((a, c) => a.y + a.h / 2 - (c.y + c.h / 2) || a.x - c.x),
+  ];
 }
 
 const round3 = (n: number) => Math.round(n * 1000) / 1000;
@@ -299,15 +308,47 @@ function locate(q: string, p: Normalised, minScore: number, ignore: Set<string>)
 
 const normalisedIgnore = (o?: GroundOptions) => new Set((o?.ignoreTokens ?? []).map((t) => stripPunct(t.toLowerCase())).filter(Boolean));
 
-/** One page's words that fall in [start, end) of its text, as line boxes. */
-function boxesFor(page: ParsedPage, start: number, end: number): Box[] {
-  return lineBoxes(page.words.filter((w) => w.start < end && w.end > start).map((w) => w.box));
+/** Part of a quote's text with fewer boxes than this share of its words is not highlighted at all. */
+const MIN_COVERAGE = 0.6;
+/** A word farther than this many word-heights from every other word of the quote is taken to be mis-placed. */
+const OUTLIER_HEIGHTS = 4;
+
+interface Positioned {
+  boxes: Box[];
+  /** Words left out of the boxes because their position looked wrong. */
+  trimmed: number;
+  /** The text is there but too few of its words have positions to draw a highlight. */
+  unpositioned: boolean;
+}
+
+/**
+ * One page's words that fall in [start, end) of its text, as line boxes. Parsers are sometimes wrong about positions,
+ * and a highlight in the wrong place is worse than none:
+ *   - if under 60% of the words have a position (LlamaParse gives none for the second column of a paragraph that
+ *     runs across columns), nothing is drawn and the part is marked unpositioned;
+ *   - a word far from all the others (a stamp confuses the parser into placing one word 80 pt away) is left out.
+ */
+function positioned(page: ParsedPage, start: number, end: number): Positioned {
+  const words = page.words.filter((w) => w.start < end && w.end > start);
+  const tokens = (page.text.slice(start, end).match(/[^\s*#|_]*[\p{L}\p{N}][^\s*#|_]*/gu) ?? []).length;
+  if (tokens >= 3 && words.length / tokens < MIN_COVERAGE) return { boxes: [], trimmed: 0, unpositioned: true };
+  if (!words.length) return { boxes: [], trimmed: 0, unpositioned: tokens > 0 };
+
+  let kept = words;
+  if (words.length >= 4) {
+    const mid = (w: (typeof words)[number]) => w.box.y + w.box.h / 2;
+    const heights = words.map((w) => w.box.h).sort((a, b) => a - b);
+    const limit = OUTLIER_HEIGHTS * heights[Math.floor(heights.length / 2)]!;
+    kept = words.filter((w) => words.some((o) => o !== w && Math.abs(mid(o) - mid(w)) <= limit));
+    if (kept.length < 3) kept = words; // nothing sensible to keep: don't guess
+  }
+  return { boxes: lineBoxes(kept.map((w) => w.box)), trimmed: words.length - kept.length, unpositioned: false };
 }
 
 function groundedOn(page: ParsedPage, p: Normalised, hit: Hit, count: number): GroundingResult {
   const start = p.from[hit.normStart]!;
   const end = p.to[hit.normEnd - 1]!;
-  const boxes = boxesFor(page, start, end);
+  const { boxes, trimmed, unpositioned } = positioned(page, start, end);
   return {
     status: 'grounded',
     score: round3(hit.exact && count > 1 ? 0.99 : hit.score),
@@ -317,6 +358,8 @@ function groundedOn(page: ParsedPage, p: Normalised, hit: Hit, count: number): G
     boxes,
     fractions: boxes.map((b) => toFraction(b, page)),
     match: hit.exact ? 'exact' : 'fuzzy',
+    ...(trimmed ? { trimmed } : {}),
+    ...(unpositioned ? { unpositioned: true } : {}),
   };
 }
 
@@ -351,8 +394,11 @@ function acrossBreak(q: string, a: ParsedPage, b: ParsedPage, minScore: number, 
   const hit = crossing[0]!;
   const start = p.from[hit.normStart]!;
   const end = p.to[hit.normEnd - 1]! - offset;
-  const first = boxesFor(a, start, a.text.length);
-  const second = boxesFor(b, 0, end);
+  const pa = positioned(a, start, a.text.length);
+  const pb = positioned(b, 0, end);
+  const first = pa.boxes;
+  const second = pb.boxes;
+  const trimmed = pa.trimmed + pb.trimmed;
   return {
     status: 'grounded',
     score: round3(hit.score),
@@ -363,6 +409,8 @@ function acrossBreak(q: string, a: ParsedPage, b: ParsedPage, minScore: number, 
     fractions: first.map((x) => toFraction(x, a)),
     match: hit.exact ? 'exact' : 'fuzzy',
     more: [{ page: b.page, start: 0, end, boxes: second, fractions: second.map((x) => toFraction(x, b)) }],
+    ...(trimmed ? { trimmed } : {}),
+    ...(pa.unpositioned && pb.unpositioned ? { unpositioned: true } : {}),
   };
 }
 

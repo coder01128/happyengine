@@ -60,3 +60,18 @@ describe('firstRegion', () => {
     expect(firstRegion([])).toBeUndefined();
   });
 });
+
+describe('highlightRegions with a stamp in the quote', () => {
+  it('draws one padded rectangle for the upright words and each tilted word on its own', () => {
+    const regions = highlightRegions({ page: 1, fractions: [{ x: 0.1, y: 0.4, w: 0.1, h: 0.01 }, { x: 0.21, y: 0.4, w: 0.1, h: 0.01 }, { x: 0.32, y: 0.39, w: 0.08, h: 0.02, r: 9 }] });
+    expect(regions).toHaveLength(2);
+    expect(regions[0]!.box.r).toBeUndefined();
+    expect(regions[1]!.box.r).toBe(9);
+  });
+
+  it('a tilt under 3 degrees is upright', () => {
+    const regions = highlightRegions({ page: 1, fractions: [{ x: 0.1, y: 0.4, w: 0.1, h: 0.01, r: 1.5 }, { x: 0.21, y: 0.4, w: 0.1, h: 0.01 }] });
+    expect(regions).toHaveLength(1);
+    expect(regions[0]!.box.r).toBeUndefined();
+  });
+});

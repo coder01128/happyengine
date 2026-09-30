@@ -117,3 +117,20 @@ Rules:
 - List every addendum clause that replaces or changes an earlier clause under "amendments", with the number of the clause it changes. Also record the addendum's new wording as a candidate for the affected field, and keep the original clause's candidate.
 - Money in cents (R32 000.00 = 3200000). Dates as YYYY-MM-DD. Terms in months (3 years = 36).
 - Give the clause label as it is written in the document ("cl. 18.2", "Order form item 4", "Sch. 2", "Add. 1 cl. 2").`;
+
+
+/**
+ * The instructions for one organisation's register. Without this the extractor cannot know which party is "us": it
+ * took the organisation's own name as the counterparty on most agreements (measured in the Phase 4 eval).
+ */
+export function contractsInstructionsFor(organisation: string): string {
+  const name = organisation.trim();
+  return `${contractsInstructions}
+- Use "not_stated" only after looking through every page, including schedules, order forms, annexures and any terms at the back.${
+    name
+      ? `
+
+Whose register this is: "${name}". It is one of the parties to every agreement in it. The counterparty is the OTHER party, the one that is not "${name}" (a party may be named a little differently, for example with or without "(Pty) Ltd").`
+      : ''
+  }`;
+}

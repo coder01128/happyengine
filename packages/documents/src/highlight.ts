@@ -1,7 +1,7 @@
 // What a source viewer draws for a matched quote: the regions to highlight (as 0–1 page fractions, so the
 // viewer only ever sets CSS percentages) and the text of the chip that opens it. Pure and dependency-free.
 
-import type { FractionBox } from './positions.ts';
+import { isTilted, type FractionBox } from './positions.ts';
 
 /** A rectangle to draw on one page. */
 export interface Region {
@@ -34,9 +34,9 @@ function pad(b: FractionBox, px: number, py: number): FractionBox {
 }
 
 /**
- * The rectangles to draw for a hit. Clause style: one padded rectangle round all of a part's line boxes. A part with
- * any rotated word (a box with r) is drawn word by word instead, each box rotated about its own centre, because a
- * rectangle round rotated words would not follow them. `approximate` (a scanned page) widens the padding sideways.
+ * The rectangles to draw for a hit. Clause style: one padded rectangle round all of a part's upright line boxes. Words
+ * tilted by 3 degrees or more (a stamp) are drawn word by word, each box rotated about its own centre, because a
+ * rectangle round them would not follow them. `approximate` (a scanned page) widens the padding sideways.
  */
 export function highlightRegions(hit: Hit, opts: { approximate?: boolean } = {}): Region[] {
   const px = PAD_X + (opts.approximate ? SCAN_PAD_X : 0);
@@ -44,19 +44,15 @@ export function highlightRegions(hit: Hit, opts: { approximate?: boolean } = {})
   const out: Region[] = [];
   for (const part of parts) {
     if (!part.fractions.length) continue;
-    if (part.fractions.some((b) => b.r)) {
-      for (const b of part.fractions) out.push({ page: part.page, box: pad(b, px, PAD_Y) });
-      continue;
+    // Upright words: one padded rectangle. Tilted words (a stamp) are drawn one by one, each about its own centre.
+    const flat = part.fractions.filter((b) => !isTilted(b));
+    if (flat.length) {
+      const x = Math.min(...flat.map((b) => b.x));
+      const y = Math.min(...flat.map((b) => b.y));
+      const union: FractionBox = { x, y, w: Math.max(...flat.map((b) => b.x + b.w)) - x, h: Math.max(...flat.map((b) => b.y + b.h)) - y };
+      out.push({ page: part.page, box: pad(union, px, PAD_Y) });
     }
-    const x = Math.min(...part.fractions.map((b) => b.x));
-    const y = Math.min(...part.fractions.map((b) => b.y));
-    const union: FractionBox = {
-      x,
-      y,
-      w: Math.max(...part.fractions.map((b) => b.x + b.w)) - x,
-      h: Math.max(...part.fractions.map((b) => b.y + b.h)) - y,
-    };
-    out.push({ page: part.page, box: pad(union, px, PAD_Y) });
+    for (const b of part.fractions.filter(isTilted)) out.push({ page: part.page, box: pad(b, px, PAD_Y) });
   }
   return out;
 }
@@ -76,6 +72,7 @@ export function firstRegion(regions: Region[]): Region | undefined {
  * own record; the viewer knows nothing about contracts.
  *   found           the quote is on the page and the value is in it
  *   value_mismatch  the quote is on the page but the value isn't in it (flagged for review, location still shown)
+ *   no_position     the quote is on the page but the parser gave no usable positions for it, so nothing can be highlighted
  *   ambiguous       the quote is in more than one place
  *   not_found       the quote is nowhere on its page
  */
@@ -90,7 +87,7 @@ export interface ViewerSource {
   /** What the value is: "Notice period". */
   label: string;
   quote: string;
-  state: 'found' | 'value_mismatch' | 'ambiguous' | 'not_found';
+  state: 'found' | 'value_mismatch' | 'no_position' | 'ambiguous' | 'not_found';
   /** The reason in words, when not found. */
   reason?: string;
   fractions: FractionBox[];
@@ -117,6 +114,8 @@ export function chipLabel(s: Pick<ViewerSource, 'state' | 'page' | 'clause' | 'c
       return s.flag ? `${chipText(s)} · ${FLAG_CHIP[s.flag]}` : chipText(s);
     case 'value_mismatch':
       return `${chipText(s)} · value not in wording — review`;
+    case 'no_position':
+      return `${chipText(s)} · no highlight`;
     case 'ambiguous':
       return 'Source unclear — review';
     default:

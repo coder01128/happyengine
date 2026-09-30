@@ -35,7 +35,7 @@ export function SourceChip({ source, onOpen }: { source: ViewerSource; onOpen: (
     <>
       <button
         type="button"
-        className={`src${source.state !== 'found' ? ' src-review' : source.flag ? ' src-flag' : ''}`}
+        className={`src${source.state === 'no_position' || (source.state === 'found' && source.flag) ? ' src-flag' : source.state !== 'found' ? ' src-review' : ''}`}
         onClick={() => onOpen(source)}
         aria-label={`${label}, source for ${source.label}`}
       >
@@ -222,7 +222,7 @@ export function SourceViewer({ sources, documents, initialId, onClose }: { sourc
   const source = sources.find((s) => s.id === activeId) ?? sources[0]!;
   const doc = documents[source.file];
   const regions = useMemo(
-    () => (source.state === 'not_found' || source.state === 'ambiguous' ? [] : highlightRegions({ page: source.page, fractions: source.fractions, more: source.more }, { approximate: source.approximate })),
+    () => (source.state === 'not_found' || source.state === 'ambiguous' || source.state === 'no_position' ? [] : highlightRegions({ page: source.page, fractions: source.fractions, more: source.more }, { approximate: source.approximate })),
     [source],
   );
   const [current, setCurrent] = useState(source.state === 'found' || source.state === 'value_mismatch' ? source.page : source.claimedPage ?? source.page);
@@ -242,8 +242,9 @@ export function SourceViewer({ sources, documents, initialId, onClose }: { sourc
     document.querySelector<HTMLElement>(`.vw-scroll [data-page="${clamped}"]`)?.scrollIntoView({ block: 'start', behavior: 'auto' });
   };
 
-  const located = source.state === 'found' || source.state === 'value_mismatch';
-  const caption = `Showing ${chipText(source)} · ${source.label}${located ? (source.approximate ? ' · position approximate' : '') : ' · no highlight'}`;
+  const located = source.state === 'found' || source.state === 'value_mismatch' || source.state === 'no_position';
+  const highlighted = regions.length > 0;
+  const caption = `Showing ${chipText(source)} · ${source.label}${highlighted ? (source.approximate ? ' · position approximate' : '') : ' · no highlight'}`;
   const others = source.flag ? sources.filter((s) => s.id !== source.id && s.flag === source.flag) : [];
   const status =
     source.state === 'found' && source.flag ? (
@@ -252,6 +253,8 @@ export function SourceViewer({ sources, documents, initialId, onClose }: { sourc
       <span className="badge b-ok">Source found</span>
     ) : source.state === 'value_mismatch' ? (
       <span className="badge b-inc">Flagged for review</span>
+    ) : source.state === 'no_position' ? (
+      <span className="badge b-inc">Found — no highlight</span>
     ) : source.state === 'ambiguous' ? (
       <span className="badge b-mis">Source unclear — review</span>
     ) : (
@@ -311,13 +314,14 @@ export function SourceViewer({ sources, documents, initialId, onClose }: { sourc
         {source.flag === 'unclear' && <p className="vw-notice vw-flag">This wording could not be resolved on its own. It has been flagged for review.</p>}
         {source.supersededBy && <p className="vw-notice">Superseded by {source.supersededBy}. This wording no longer applies.</p>}
         {source.claimedPage !== undefined && located && <p className="vw-notice">The wording was found on page {source.page}, not page {source.claimedPage} as first cited.</p>}
+        {source.state === 'no_position' && <p className="vw-notice vw-warn">{source.reason} Check the page.</p>}
         {!located && (
           <p className="vw-notice vw-warn" role="status">
             {source.reason ?? 'The quoted wording wasn’t found on this page.'} Check the page before relying on this value.
           </p>
         )}
         {source.state === 'value_mismatch' && <p className="vw-notice vw-warn">{source.reason} The wording is highlighted so you can check it.</p>}
-        {source.approximate && located && <p className="vw-notice">Scanned copy: the highlight’s position is approximate.</p>}
+        {source.approximate && highlighted && <p className="vw-notice">The highlight’s position is approximate (a scanned copy, or the parser was unsure of part of the page).</p>}
         <p className="vw-truth muted">The signed agreement is the source of truth.</p>
       </div>
 

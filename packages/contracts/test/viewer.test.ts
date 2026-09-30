@@ -96,6 +96,28 @@ describe('fieldViewerSources', () => {
     expect(s!.more![0]!.page).toBe(2);
   });
 
+  it('a quote on the page whose words have no positions: no_position, chip says "no highlight", the reason is in words', () => {
+    const noBoxes: ParsedDocument = { parser: 'fixture', pageCount: 1, pages: [{ ...page('2.1 This agreement commences on 1 March 2026 for a period of three (3) years.'), words: [] }] };
+    const r = buildRecord({ id: 'a', ref: 'A', files: ['main.pdf'], parsed: { 'main.pdf': noBoxes }, extraction: { fields: { startDate: [cand('2026-03-01', 'This agreement commences on 1 March 2026', 'cl. 2.1')] }, amendments: [] }, preset });
+    const [x] = fieldViewerSources(r, 'startDate');
+    expect(x).toMatchObject({ state: 'no_position', fractions: [], reason: expect.stringContaining('did not give its position') });
+    expect(chipLabel(x!)).toBe('p.1 · cl. 2.1 · no highlight');
+    // The value is still recorded: the wording is on the page and matches; only the highlight is missing.
+    expect(r.fields.startDate!.status).toBe('recorded');
+  });
+
+  it('a highlight with a mis-placed word left out is marked approximate', () => {
+    const words = 'This agreement commences on 1 March 2026'.split(' ');
+    const p = page('2.1 This agreement commences on 1 March 2026 for a period of three (3) years.');
+    // Move one word of the quote 80 points away, as a stamp did in a live run.
+    const moved: ParsedPage = { ...p, words: p.words.map((w) => (w.text === 'March' ? { ...w, box: { ...w.box, y: w.box.y + 80 } } : w)) };
+    const r = buildRecord({ id: 'a', ref: 'A', files: ['main.pdf'], parsed: { 'main.pdf': { parser: 'fixture', pageCount: 1, pages: [moved] } }, extraction: { fields: { startDate: [cand('2026-03-01', words.join(' '), 'cl. 2.1')] }, amendments: [] }, preset });
+    const [x] = fieldViewerSources(r, 'startDate');
+    expect(r.fields.startDate!.candidates[0]!.grounding.trimmed).toBe(1);
+    expect(x).toMatchObject({ state: 'found', approximate: true });
+    expect(x!.fractions).toHaveLength(1);
+  });
+
   it('a field that was never extracted has no sources', () => expect(fieldViewerSources(build({}), 'fee')).toEqual([]));
 
   describe('flags: where a review item points, the chip says so in words', () => {

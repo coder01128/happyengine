@@ -2,7 +2,7 @@
 // and the contracts unit tests.
 
 import type { IsoDate } from '../../packages/core/src/index.ts';
-import type { Box, ParsedDocument } from '../../packages/documents/src/index.ts';
+import { chipText, type Box, type ParsedDocument } from '../../packages/documents/src/index.ts';
 import { dateStatus, sameValue, type AgreementRecord, type CandidateValue, type ContractsPreset, type FieldKey } from '../../packages/contracts/src/index.ts';
 
 interface ExpectedSource { value: CandidateValue; source: string[]; also?: string[] }
@@ -23,24 +23,35 @@ export interface Expected {
 export type Boxes = Record<string, Record<string, (Box & { page: number })[]>>;
 
 export interface Score {
-  fields: { correct: number; total: number; misses: string[] };
+  fields: { correct: number; total: number; misses: string[]; byField: Record<string, { correct: number; total: number }> };
   grounding: { grounded: number; total: number; exact: number; fuzzy: number; ambiguous: number; elsewhere: number; valueFailed: number };
-  highlights: { ok: number; total: number; misses: string[] };
+  /** Only sources cited at a place the answer key lists for the field are scored. ok: the box overlaps the expected box (IoU ≥ 0.5) or lies inside it. iouOk: overlap alone, the older rule. unlisted: sources cited somewhere the key doesn't list (not scored). */
+  highlights: { ok: number; iouOk: number; total: number; unlisted: number; misses: string[] };
   flags: { found: number; expected: number; missed: string[]; unexpected: string[] };
   dates: { correct: number; total: number; misses: string[]; unexpected: string[] };
 }
 
 export const emptyScore = (): Score => ({
-  fields: { correct: 0, total: 0, misses: [] },
+  fields: { correct: 0, total: 0, misses: [], byField: {} },
   grounding: { grounded: 0, total: 0, exact: 0, fuzzy: 0, ambiguous: 0, elsewhere: 0, valueFailed: 0 },
-  highlights: { ok: 0, total: 0, misses: [] },
+  highlights: { ok: 0, iouOk: 0, total: 0, unlisted: 0, misses: [] },
   flags: { found: 0, expected: 0, missed: [], unexpected: [] },
   dates: { correct: 0, total: 0, misses: [], unexpected: [] },
 });
 
 export function addScore(a: Score, b: Score): Score {
   return {
-    fields: { correct: a.fields.correct + b.fields.correct, total: a.fields.total + b.fields.total, misses: [...a.fields.misses, ...b.fields.misses] },
+    fields: {
+      correct: a.fields.correct + b.fields.correct,
+      total: a.fields.total + b.fields.total,
+      misses: [...a.fields.misses, ...b.fields.misses],
+      byField: Object.fromEntries(
+        [...new Set([...Object.keys(a.fields.byField), ...Object.keys(b.fields.byField)])].map((k) => [
+          k,
+          { correct: (a.fields.byField[k]?.correct ?? 0) + (b.fields.byField[k]?.correct ?? 0), total: (a.fields.byField[k]?.total ?? 0) + (b.fields.byField[k]?.total ?? 0) },
+        ]),
+      ),
+    },
     grounding: {
       grounded: a.grounding.grounded + b.grounding.grounded,
       total: a.grounding.total + b.grounding.total,
@@ -50,7 +61,13 @@ export function addScore(a: Score, b: Score): Score {
       elsewhere: a.grounding.elsewhere + b.grounding.elsewhere,
       valueFailed: a.grounding.valueFailed + b.grounding.valueFailed,
     },
-    highlights: { ok: a.highlights.ok + b.highlights.ok, total: a.highlights.total + b.highlights.total, misses: [...a.highlights.misses, ...b.highlights.misses] },
+    highlights: {
+      ok: a.highlights.ok + b.highlights.ok,
+      iouOk: a.highlights.iouOk + b.highlights.iouOk,
+      total: a.highlights.total + b.highlights.total,
+      unlisted: a.highlights.unlisted + b.highlights.unlisted,
+      misses: [...a.highlights.misses, ...b.highlights.misses],
+    },
     flags: {
       found: a.flags.found + b.flags.found,
       expected: a.flags.expected + b.flags.expected,
@@ -80,6 +97,26 @@ function iou(a: Box, b: Box): number {
   return union > 0 ? inter / union : 0;
 }
 
+/** How much of box a lies inside box b, 0–1. */
+function inside(a: Box, b: Box): number {
+  const x = Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x));
+  const y = Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
+  return a.w * a.h > 0 ? (x * y) / (a.w * a.h) : 0;
+}
+
+/** Why a field is not what was expected, in a phrase: what the rules did with the candidates the extractor gave. */
+function whyField(record: AgreementRecord, key: FieldKey): string {
+  const f = record.fields[key];
+  if (!f) return 'the extractor gave no candidate for this field';
+  const item = record.reviewItems.find((i) => i.fieldKey === key);
+  const cited = f.candidates.map((c) => `${chipText(c)}`).join(', ');
+  if (f.status === 'not_verified') return `flagged: ${item?.summary.replace(/^[^:]+: /, '') ?? 'source not verified'} (cited ${cited})`;
+  if (f.status === 'conflict') return `flagged as a conflict between ${cited}`;
+  if (f.status === 'not_stated') return `extractor said not stated${cited ? ` (cited ${cited})` : ''}`;
+  if (f.status === 'blank') return `recorded as a blank line (cited ${cited})`;
+  return `recorded from ${f.candidates[f.current ?? 0] ? chipText(f.candidates[f.current ?? 0]!) : 'a cited clause'}`;
+}
+
 function unionBox(list: Box[]): Box {
   const x = Math.min(...list.map((b) => b.x));
   const y = Math.min(...list.map((b) => b.y));
@@ -103,6 +140,8 @@ export function scoreAgreement(
   // Fields: typed comparison.
   for (const [key, e] of Object.entries(exp.fields) as [FieldKey, ExpectedField][]) {
     s.fields.total++;
+    const bf = (s.fields.byField[key] ??= { correct: 0, total: 0 });
+    bf.total++;
     const f = record.fields[key];
     let ok: boolean;
     let got: unknown = f ? (f.status === 'recorded' ? f.value : f.status) : undefined;
@@ -119,8 +158,10 @@ export function scoreAgreement(
       ok = !!f?.candidates.some((c) => c.superseded && sameValue(c.value, e.supersedes!.value));
       if (!ok) got = `${show(got)} without the superseded ${show(e.supersedes.value)}`;
     }
-    if (ok) s.fields.correct++;
-    else s.fields.misses.push(`${ref} ${key}: expected ${show(e.values?.map((v) => v.value) ?? e.value)}, got ${show(got)}`);
+    if (ok) {
+      s.fields.correct++;
+      bf.correct++;
+    } else s.fields.misses.push(`${ref} ${key}: expected ${show(e.values?.map((v) => v.value) ?? e.value)}, got ${show(got)} — ${whyField(record, key)}`);
   }
 
   // Grounding: every quote the extractor gave, amendments included.
@@ -139,19 +180,35 @@ export function scoreAgreement(
     for (const [key, e] of Object.entries(exp.fields) as [FieldKey, ExpectedField][]) {
       const ids = [...(e.source ?? []), ...(e.also ?? []), ...(e.supersedes?.source ?? []), ...(e.values ?? []).flatMap((v) => v.source)];
       for (const c of record.fields[key]?.candidates ?? []) {
-        s.highlights.total++;
         const page = parsed[c.file]?.pages.find((p) => p.page === c.page);
         const expectedBoxes = ids.flatMap((i) => (boxes[c.file]?.[i] ?? []).filter((b) => b.page === c.page));
+        // A clause the answer key doesn't list for this field can't be judged either way: counted apart, not as a miss.
+        if (!expectedBoxes.length) {
+          s.highlights.unlisted++;
+          continue;
+        }
+        s.highlights.total++;
         let best = 0;
+        let within = 0;
         if (page && c.grounding.boxes.length) {
           const kx = A4.w / page.width;
           const ky = A4.h / page.height;
           const u = unionBox(c.grounding.boxes);
           const got = { x: u.x * kx, y: u.y * ky, w: u.w * kx, h: u.h * ky };
           best = Math.max(0, ...expectedBoxes.map((b) => iou(got, b)));
+          within = Math.max(0, ...expectedBoxes.map((b) => inside(got, b)));
         }
-        if (best >= 0.5) s.highlights.ok++;
-        else s.highlights.misses.push(`${ref} ${key} (${c.file} p.${c.page}${c.clause ? ` ${c.clause}` : ''}): IoU ${best.toFixed(2)}`);
+        // A hit: the box overlaps the expected box, or lies inside it. (The reference boxes are padded round the
+        // clause, so a tight box round the right words can score low on overlap alone.)
+        if (best >= 0.5) s.highlights.iouOk++;
+        if (best >= 0.5 || within >= 0.9) s.highlights.ok++;
+        else {
+          const where = `${ref} ${key} (${c.file} p.${c.page}${c.clause ? ` ${c.clause}` : ''})`;
+          const why = !c.grounding.boxes.length
+            ? `no highlight: ${c.grounding.status === 'ambiguous' ? 'quote appears in more than one place' : c.grounding.unpositioned ? 'the quote is on the page but the parser gave no positions for it' : c.grounding.note ?? 'quote not found on its page'}`
+            : `box is elsewhere: overlap ${best.toFixed(2)}, inside expected ${Math.round(within * 100)}%${c.grounding.trimmed ? ` (${c.grounding.trimmed} mis-placed word${c.grounding.trimmed > 1 ? 's' : ''} left out)` : ''}`;
+          s.highlights.misses.push(`${where}: ${why}`);
+        }
       }
     }
   }

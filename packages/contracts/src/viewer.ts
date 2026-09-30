@@ -6,7 +6,8 @@ import type { AgreementRecord, FieldKey, RecordCandidate, Source } from './types
 function stateOf(s: Source): ViewerSource['state'] {
   if (s.grounding.status === 'ambiguous') return 'ambiguous';
   if (s.grounding.status === 'not_found') return 'not_found';
-  return s.valueCheck === 'failed' ? 'value_mismatch' : 'found';
+  if (s.valueCheck === 'failed') return 'value_mismatch';
+  return s.grounding.unpositioned ? 'no_position' : 'found';
 }
 
 function reasonOf(s: Source): string | undefined {
@@ -14,6 +15,7 @@ function reasonOf(s: Source): string | undefined {
   if (g.status === 'ambiguous') return 'The quoted wording appears in more than one place.';
   if (g.status === 'not_found') return g.note === 'page could not be read for positions' ? 'The page could not be read for positions.' : 'The quoted wording was not found on this page.';
   if (s.valueCheck === 'failed') return 'The value is not in the quoted wording.';
+  if (g.unpositioned) return 'The wording was found on this page, but the parser did not give its position, so nothing is highlighted.';
   return undefined;
 }
 
@@ -34,7 +36,7 @@ export function viewerSource(s: Source, label: string, opts: { id: string; scann
     ...(reasonOf(s) ? { reason: reasonOf(s)! } : {}),
     fractions: located ? g.fractions ?? [] : [],
     ...(located && g.more?.length ? { more: g.more.map((m) => ({ page: m.page, fractions: m.fractions })) } : {}),
-    ...(opts.scanned ? { approximate: true } : {}),
+    ...(opts.scanned || g.trimmed ? { approximate: true } : {}),
     ...(opts.supersededBy ? { supersededBy: opts.supersededBy } : {}),
     ...(opts.flag ? { flag: opts.flag } : {}),
   };

@@ -1,0 +1,131 @@
+{
+  "_note": "Recorded from claude-sonnet-5-5 on 2026-09-30",
+  "l1": {
+    "fields": {
+      "counterparty": [
+        {
+          "value": "Kloof Storage (Pty) Ltd",
+          "quote": "This sub-lease is entered into between Kloof Storage (Pty) Ltd (sample) (\"the Sublessor\") and Marula Office Supplies (Pty) Ltd (\"the Sublessee\").",
+          "file": "lakeside-sublease.pdf",
+          "page": 1,
+          "clause": "cl. 1.1"
+        }
+      ],
+      "agreementType": [
+        {
+          "value": "Warehouse sub-lease",
+          "quote": "This sub-lease is entered into between Kloof Storage (Pty) Ltd (sample)",
+          "file": "lakeside-sublease.pdf",
+          "page": 1,
+          "clause": "cl. 1.1"
+        }
+      ],
+      "premises": [
+        {
+          "value": "Unit 12, Kloof Business Yard, Pinetown",
+          "quote": "The Sublessor sub-lets to the Sublessee Unit 12, Kloof Business Yard, Pinetown (\"the Premises\")",
+          "file": "lakeside-sublease.pdf",
+          "page": 1,
+          "clause": "cl. 2.1"
+        }
+      ],
+      "startDate": [
+        {
+          "value": "2026-08-01",
+          "quote": "This sub-lease commences on 1 August 2026 (\"the Commencement Date\").",
+          "file": "lakeside-sublease.pdf",
+          "page": 1,
+          "clause": "cl. 3.1"
+        }
+      ],
+      "endDate": [
+        {
+          "value": "not_stated",
+          "quote": "shall vacate on the last day of the sub-lease, leaving the Premises empty",
+          "file": "lakeside-sublease.pdf",
+          "page": 1,
+          "clause": "cl. 3.3"
+        }
+      ],
+      "termMonths": [
+        {
+          "value": 24,
+          "quote": "The initial term is 24 (twenty-four) months from the Commencement Date.",
+          "file": "lakeside-sublease.pdf",
+          "page": 1,
+          "clause": "cl. 3.2"
+        }
+      ],
+      "renewal": [
+        {
+          "value": {
+            "kind": "automatic",
+            "periodMonths": 12
+          },
+          "quote": "This sub-lease renews automatically for successive periods of 12 (twelve) months unless cancelled in terms of clause 5.2.",
+          "file": "lakeside-sublease.pdf",
+          "page": 2,
+          "clause": "cl. 5.1"
+        }
+      ],
+      "notice": [
+        {
+          "value": {
+            "amount": 90,
+            "unit": "days",
+            "before": "renewal"
+          },
+          "quote": "Either party may cancel this sub-lease by giving the other not less than 90 days written notice before the renewal date.",
+          "file": "lakeside-sublease.pdf",
+          "page": 2,
+          "clause": "cl. 5.2"
+        }
+      ],
+      "fee": [
+        {
+          "value": {
+            "cents": 1850000,
+            "per": "month",
+            "vat": "excluded"
+          },
+          "quote": "The monthly rent is R18 500.00 RECEIVED 13 MAR 2026 excluding VAT",
+          "file": "lakeside-sublease.pdf",
+          "page": 1,
+          "clause": "cl. 4.1"
+        }
+      ],
+      "feeChange": [
+        {
+          "value": {
+            "kind": "percent_escalation",
+            "percent": 7,
+            "every": "anniversary"
+          },
+          "quote": "The rent escalates by 7% (seven percent) on each anniversary of the Commencement Date.",
+          "file": "lakeside-sublease.pdf",
+          "page": 1,
+          "clause": "cl. 4.2"
+        }
+      ],
+      "deposit": [
+        {
+          "value": 3700000,
+          "quote": "The Sublessee shall pay a deposit of R37 000.00 on signature of this sub-lease.",
+          "file": "lakeside-sublease.pdf",
+          "page": 1,
+          "clause": "cl. 4.3"
+        }
+      ],
+      "scope": [
+        {
+          "value": "Use as a warehouse and storage area only",
+          "quote": "for use as a warehouse and storage area only.",
+          "file": "lakeside-sublease.pdf",
+          "page": 1,
+          "clause": "cl. 2.1"
+        }
+      ]
+    },
+    "amendments": []
+  }
+}

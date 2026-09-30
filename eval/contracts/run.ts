@@ -1,21 +1,23 @@
 // Contracts eval: parse → extract → buildRecord → score against expected.json and boxes.json.
 //
+// One command runs every sample and prints plain numbers:
+//   npm run eval:contracts -- --parser llamaparse --extractor claude --repeat 3
 // Usage: npm run eval:contracts -- [options] [sample]
 //   --parser fixture|pdfjs|llamaparse   fixture replays a saved parse (default: fixture)
-//   --tier cost_effective|agentic       LlamaParse tier (default cost_effective)
+//   --tier cost_effective|agentic       LlamaParse tier. Default: the preset's tier, or its scanned tier for a sample marked "scanned": true
 //   --extractor fixture:<name>|claude   fixture replays recorded/<name>.json (default fixture:extract-perfect)
 //   --reparse                           parse again even if a saved parse exists
-//   --record                            save Claude's output to recorded/extract-<model>.json
-//   --repeat N                          run the extractor N times and report fields that changed
+//   --record                            save Claude's output to recorded/extract-<model>.json (run 1) and -run2.json, -run3.json… so any run can be re-scored for free with --extractor fixture:extract-<model> --repeat N
+//   --repeat N                          run the extractor N times; numbers are reported for every run, with the spread
 //   --allow-offshore                    let live adapters run on a sample not marked "synthetic": true
 //
 // Parses are saved under <sample>/parsed/<parser>-<tier>/ and reused, so a LlamaParse run costs credits
-// only the first time. Exit code 1 on any wrong field, missed or unexpected flag, or wrong date.
+// only the first time. Exit code 1 on any wrong field, missed or unexpected flag, or wrong date in any run.
 
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
-  buildRecord, contractsInstructions, contractsSchema, sameValue, validateContractsPreset,
+  buildRecord, contractsInstructionsFor, contractsSchema, sameValue, validateContractsPreset,
   type AgreementRecord, type Extraction, type FieldKey,
 } from '../../packages/contracts/src/index.ts';
 import { createClaudeExtractor, createLlamaParseParser, documentFromSidecar, type ExtractResult, type LlamaParser, type ParsedDocument } from '../../packages/documents/src/index.ts';
@@ -43,16 +45,29 @@ if (extractorName !== 'claude' && !extractorName.startsWith('fixture:')) throw n
 const preset = validateContractsPreset(JSON.parse(readFileSync(join(root, 'presets', 'contracts.default.json'), 'utf8')));
 const readJson = (...p: string[]) => JSON.parse(readFileSync(join(...p), 'utf8'));
 
-interface Sample { synthetic?: boolean; asAt: string; organisation: string; agreements: { id: string; files: string[] }[] }
+interface Sample { synthetic?: boolean; scanned?: boolean; asAt: string; organisation: string; agreements: { id: string; files: string[] }[] }
+
+/** The tier a sample is read at: what the pipeline would use (a scanned agreement uses the scanned tier). */
+const tierFor = (sample: Sample) => opt('tier') ?? (sample.scanned ? preset.parser.scannedTier : preset.parser.tier);
 
 /** The saved-parse folder for this run's parser. fixture uses the first saved parse, preferring pdfjs. */
-function parseDir(dir: string): string {
+function parseDir(dir: string, tier: string): string {
   if (parserName === 'pdfjs') return join(dir, 'parsed', 'pdfjs-local');
-  if (parserName === 'llamaparse') return join(dir, 'parsed', `llamaparse-${opt('tier') ?? 'cost_effective'}`);
+  if (parserName === 'llamaparse') return join(dir, 'parsed', `llamaparse-${tier}`);
   const saved = existsSync(join(dir, 'parsed')) ? readdirSync(join(dir, 'parsed')).sort((a, b) => (a.startsWith('pdfjs') ? -1 : b.startsWith('pdfjs') ? 1 : a.localeCompare(b))) : [];
   if (!saved.length) throw new Error(`No saved parse in ${join(dir, 'parsed')}; run with --parser llamaparse (or pdfjs for digital PDFs) first`);
   return join(dir, 'parsed', saved[0]!);
 }
+
+/** A failure line with its category, counted across runs. */
+const failures = new Map<string, number>();
+const noteFailures = (sample: string, s: Score) => {
+  const add = (kind: string, xs: string[]) => xs.forEach((x) => failures.set(`${kind}|${sample} · ${x}`, (failures.get(`${kind}|${sample} · ${x}`) ?? 0) + 1));
+  add('field', s.fields.misses);
+  add('highlight', s.highlights.misses);
+  add('flag', [...s.flags.missed.map((m) => `missed ${m}`), ...s.flags.unexpected.map((u) => `unexpected ${u}`)]);
+  add('date', [...s.dates.misses, ...s.dates.unexpected.map((u) => `unexpected ${u}`)]);
+};
 
 async function main() {
   const samples = readdirSync(here, { withFileTypes: true })
@@ -63,16 +78,20 @@ async function main() {
 
   const live = parserName === 'llamaparse' || extractorName === 'claude';
   if (live) loadSecrets();
-  let total = emptyScore();
+  const runTotals: Score[] = [];
   let failed = false;
   let credits = 0;
   const tokens = { input: 0, output: 0 };
+  let model = extractorName;
+  const changedFields: string[] = [];
+  let llama: LlamaParser | undefined;
 
   for (const name of samples) {
     const dir = join(here, name);
     const sample: Sample = readJson(dir, 'sample.json');
     const expected: Expected = readJson(dir, 'expected.json');
     const boxes: Boxes | undefined = existsSync(join(dir, 'boxes.json')) ? readJson(dir, 'boxes.json') : undefined;
+    const tier = tierFor(sample);
 
     if (live && sample.synthetic !== true && !flag('allow-offshore')) {
       console.log(`\n${name}: refused. Live adapters send documents offshore (LlamaParse, Claude API).`);
@@ -84,18 +103,16 @@ async function main() {
 
     // Parse once; reuse the saved parse unless --reparse.
     let cacheDir = '';
-    let llama: LlamaParser | undefined;
     const parsed: Record<string, ParsedDocument> = {};
     let pages = 0;
     let sampleCredits = 0;
     try {
-      cacheDir = parseDir(dir);
+      cacheDir = parseDir(dir, tier);
       for (const a of sample.agreements) {
         for (const file of a.files) {
           const cache = join(cacheDir, file.replace(/\.pdf$/i, '.json'));
           // LlamaParse's raw sidecar is kept beside the parse (git-ignored), so the mapping can be run again for free.
           const raw = join(cacheDir, 'raw', file.replace(/\.pdf$/i, '.jsonl'));
-          const tier = opt('tier') ?? 'cost_effective';
           if (parserName === 'llamaparse' && existsSync(raw) && !flag('reparse')) {
             parsed[file] = documentFromSidecar(readFileSync(raw, 'utf8'), tier);
             writeFileSync(cache, JSON.stringify(parsed[file]) + '\n');
@@ -136,10 +153,11 @@ async function main() {
 
     // Extract, N times when asked.
     const runs: Record<string, Extraction>[] = [];
-    let model = extractorName;
     for (let n = 0; n < repeat; n++) {
       if (extractorName.startsWith('fixture:')) {
-        const file = join(dir, 'recorded', `${extractorName.slice('fixture:'.length)}.json`);
+        // Run 1 is <name>.json; further runs (from --record with --repeat) are <name>-run2.json, <name>-run3.json…
+        const base = extractorName.slice('fixture:'.length);
+        const file = join(dir, 'recorded', `${n === 0 ? base : `${base}-run${n + 1}`}.json`);
         if (!existsSync(file)) break;
         runs.push(readJson(file));
         continue;
@@ -148,7 +166,7 @@ async function main() {
       const out: Record<string, Extraction> = {};
       for (const a of sample.agreements) {
         const result: ExtractResult = await claude.extract({
-          instructions: contractsInstructions,
+          instructions: contractsInstructionsFor(sample.organisation),
           schema: contractsSchema,
           pages: a.files.flatMap((file) => parsed[file]!.pages.map((p) => ({ file, page: p.page, text: p.text }))),
         });
@@ -158,9 +176,9 @@ async function main() {
         tokens.output += result.usage.output;
       }
       runs.push(out);
-      if (flag('record') && n === 0) {
+      if (flag('record')) {
         mkdirSync(join(dir, 'recorded'), { recursive: true });
-        const path = join(dir, 'recorded', `extract-${model}.json`);
+        const path = join(dir, 'recorded', n === 0 ? `extract-${model}.json` : `extract-${model}-run${n + 1}.json`);
         writeFileSync(path, JSON.stringify({ _note: `Recorded from ${model} on ${new Date().toISOString().slice(0, 10)}`, ...out }, null, 2) + '\n');
         console.log(`Recorded ${path}`);
       }
@@ -175,44 +193,85 @@ async function main() {
       sample.agreements.map((a) =>
         buildRecord({ id: a.id, ref: a.id.toUpperCase(), files: a.files, parsed: Object.fromEntries(a.files.map((f) => [f, parsed[f]!])), extraction: ex[a.id] ?? { fields: {}, amendments: [] }, preset }),
       );
-    const records: AgreementRecord[] = build(runs[0]!);
-
-    let score = emptyScore();
-    for (const r of records) {
-      const exp = expected.agreements[r.id];
-      if (!exp) continue;
-      score = addScore(score, scoreAgreement(r.id, r, exp, sample.asAt, preset, parsed, boxes));
-    }
-    total = addScore(total, score);
-    if (!perfect(score)) failed = true;
+    const scoreRun = (records: AgreementRecord[]) => {
+      let score = emptyScore();
+      for (const r of records) {
+        const exp = expected.agreements[r.id];
+        if (exp) score = addScore(score, scoreAgreement(r.id, r, exp, sample.asAt, preset, parsed, boxes));
+      }
+      return score;
+    };
+    const built = runs.map(build);
+    const scores = built.map(scoreRun);
+    scores.forEach((s, i) => {
+      runTotals[i] = addScore(runTotals[i] ?? emptyScore(), s);
+      noteFailures(name, s);
+      if (!perfect(s)) failed = true;
+    });
 
     const files = sample.agreements.reduce((n, a) => n + a.files.length, 0);
     console.log(`\n${name}  (${sample.agreements.length} agreements, ${files} files, ${pages} pages · parser ${cacheDir.split(/[\\/]/).pop()} · extractor ${extractorName === 'claude' ? `claude (${model})` : extractorName})`);
-    printScore(score);
-
-    if (runs.length > 1) {
-      const changed: string[] = [];
-      const all = runs.map(build);
-      for (const [i, r] of records.entries()) {
+    if (runs.length === 1) printScore(scores[0]!);
+    else {
+      for (const [i, s] of scores.entries()) console.log(`  run ${i + 1}      ${line(s)}`);
+      const f = scores.map((s) => s.fields.correct);
+      console.log(`  spread      fields ${Math.min(...f)}–${Math.max(...f)} of ${scores[0]!.fields.total} across ${runs.length} runs`);
+      for (const [i, r] of built[0]!.entries()) {
         for (const key of Object.keys(r.fields) as FieldKey[]) {
-          const values = all.map((rs) => rs[i]!.fields[key]);
+          const values = built.map((rs) => rs[i]!.fields[key]);
           const first = values[0];
           if (values.some((v) => v?.status !== first?.status || (v?.value !== undefined && first?.value !== undefined ? !sameValue(v.value, first.value) : v?.value !== first?.value))) {
-            changed.push(`${r.ref} ${key}`);
+            changedFields.push(`${name} ${r.ref} ${key}`);
           }
         }
       }
-      console.log(`  variance    ${changed.length} field(s) changed across ${runs.length} runs${changed.length ? `: ${changed.join(', ')}` : ''}`);
+    }
+  }
+
+  if (!runTotals.length) throw new Error('Nothing was scored');
+  const all = runTotals.reduce((a, b) => addScore(a, b), emptyScore());
+  const n = runTotals.length;
+
+  console.log('\n──────────────── SUMMARY ────────────────');
+  console.log('Per-field accuracy' + (n > 1 ? ` (all samples, all ${n} runs)` : ' (all samples)'));
+  const keys = Object.keys(all.fields.byField).sort((a, b) => a.localeCompare(b));
+  for (const k of keys) {
+    const f = all.fields.byField[k]!;
+    console.log(`  ${k.padEnd(14)} ${String(f.correct).padStart(3)}/${String(f.total).padEnd(3)} ${pct(f.correct, f.total).padStart(6)}`);
+  }
+  console.log(`\nGrounding match rate     ${all.grounding.grounded}/${all.grounding.total} (${pct(all.grounding.grounded, all.grounding.total)}): ${all.grounding.exact} exact, ${all.grounding.fuzzy} fuzzy; ${all.grounding.ambiguous} refused as appearing in more than one place; ${all.grounding.elsewhere} found on a different page than cited`);
+  console.log(`Highlight on expected    ${all.highlights.ok}/${all.highlights.total} (${pct(all.highlights.ok, all.highlights.total)}); overlap-only rule: ${all.highlights.iouOk}/${all.highlights.total}; ${all.highlights.unlisted} more cited at places the answer key doesn't list (not scored)`);
+  console.log(`Flags                    ${all.flags.found}/${all.flags.expected} expected found · ${all.flags.unexpected.length} unexpected`);
+  console.log(`Key dates                ${all.dates.correct}/${all.dates.total} correct`);
+  if (n > 1) {
+    const f = runTotals.map((s) => s.fields.correct);
+    const h = runTotals.map((s) => s.highlights.ok);
+    console.log(`Run to run               fields ${f.join(' / ')} of ${runTotals[0]!.fields.total}; highlights ${h.join(' / ')} of ${runTotals[0]!.highlights.total}`);
+    console.log(`Fields whose answer changed between runs: ${changedFields.length}${changedFields.length ? ` — ${changedFields.join(', ')}` : ''}`);
+  }
+
+  if (failures.size) {
+    console.log(`\nEvery failure, with its reason${n > 1 ? ` (how many of ${n} runs)` : ''}:`);
+    const order = ['field', 'flag', 'date', 'highlight'];
+    for (const kind of order) {
+      const rows = [...failures.entries()].filter(([k]) => k.startsWith(`${kind}|`)).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+      if (!rows.length) continue;
+      console.log(`  ${kind === 'highlight' ? 'highlights' : kind + 's'} (${rows.length}):`);
+      for (const [k, c] of rows) console.log(`    · ${k.slice(kind.length + 1)}${n > 1 ? `  [${c}/${n}]` : ''}`);
     }
   }
 
   console.log(
-    `\nTOTAL  fields ${total.fields.correct}/${total.fields.total} · grounding ${total.grounding.grounded}/${total.grounding.total} (${pct(total.grounding.grounded, total.grounding.total)})` +
-      ` · highlights ${total.highlights.ok}/${total.highlights.total} · flags ${total.flags.found}/${total.flags.expected} (${total.flags.unexpected.length} unexpected)` +
-      ` · key dates ${total.dates.correct}/${total.dates.total}`,
+    `\nTOTAL  fields ${runTotals[0]!.fields.correct}/${runTotals[0]!.fields.total} · grounding ${runTotals[0]!.grounding.grounded}/${runTotals[0]!.grounding.total} (${pct(runTotals[0]!.grounding.grounded, runTotals[0]!.grounding.total)})` +
+      ` · highlights ${runTotals[0]!.highlights.ok}/${runTotals[0]!.highlights.total} · flags ${runTotals[0]!.flags.found}/${runTotals[0]!.flags.expected} (${runTotals[0]!.flags.unexpected.length} unexpected)` +
+      ` · key dates ${runTotals[0]!.dates.correct}/${runTotals[0]!.dates.total}${n > 1 ? ' (run 1)' : ''}`,
   );
   console.log(`COST   LlamaParse ~${credits} credits this run · Claude ${tokens.input} input / ${tokens.output} output tokens`);
   if (failed) process.exitCode = 1;
+}
+
+function line(s: Score) {
+  return `fields ${s.fields.correct}/${s.fields.total} · grounding ${s.grounding.grounded}/${s.grounding.total} · highlights ${s.highlights.ok}/${s.highlights.total} · flags ${s.flags.found}/${s.flags.expected} (${s.flags.unexpected.length} unexpected) · key dates ${s.dates.correct}/${s.dates.total}`;
 }
 
 function printScore(s: Score) {
@@ -221,7 +280,7 @@ function printScore(s: Score) {
   list(s.fields.misses);
   const g = s.grounding;
   console.log(`  grounding   ${g.grounded}/${g.total} quotes found (${pct(g.grounded, g.total)}): ${g.exact} exact, ${g.fuzzy} fuzzy · ${g.elsewhere} on a different page than claimed · ${g.ambiguous} ambiguous · value not in cited text: ${g.valueFailed}`);
-  console.log(`  highlights  ${s.highlights.ok}/${s.highlights.total} sources overlap the expected box (IoU ≥ 0.5)`);
+  console.log(`  highlights  ${s.highlights.ok}/${s.highlights.total} sources on the expected box (overlap ≥ 0.5 or inside it) · ${s.highlights.unlisted} more cited at places the key doesn't list`);
   list(s.highlights.misses);
   console.log(`  flags       ${s.flags.found}/${s.flags.expected} found · ${s.flags.unexpected.length} unexpected`);
   list([...s.flags.missed.map((m) => `missed ${m}`), ...s.flags.unexpected.map((u) => `unexpected ${u}`)]);

@@ -85,6 +85,7 @@ These are blocked in `.claude/settings.json` for the Read, Grep and Glob tools. 
 | `npm run eval` | Same TOTAL line as before the change |
 | `npm run smoke` | `All checks passed`. Needs `supabase start` and `supabase functions serve` running |
 | `node scripts/check-coords.ts --parser pdfjs` | `TOTAL 24/24 words within 1% of page size` |
+| `npm run eval:contracts -- --parser pdfjs --extractor fixture:extract-perfect` | `TOTAL fields 84/84 · grounding 103/103 (100%) · highlights 87/87 · flags 6/6 (0 unexpected) · key dates 18/18`. The live version (LlamaParse + Claude) is in `docs/contracts-eval-report.md` |
 
 A change that lowers eval accuracy does not ship.
 

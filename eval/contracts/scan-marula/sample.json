@@ -3,10 +3,37 @@
   "asAt": "2026-10-14",
   "organisation": "Marula Office Supplies (Pty) Ltd",
   "agreements": [
-    { "id": "c1", "files": ["c1-lease.pdf", "c1-addendum.pdf"] },
-    { "id": "c2", "files": ["c2-subscription.pdf"] },
-    { "id": "c3", "files": ["c3-cleaning.pdf"] },
-    { "id": "c4", "files": ["c4-copier.pdf"] },
-    { "id": "c5", "files": ["c5-courier.pdf"] }
-  ]
+    {
+      "id": "c1",
+      "files": [
+        "c1-lease.pdf",
+        "c1-addendum.pdf"
+      ]
+    },
+    {
+      "id": "c2",
+      "files": [
+        "c2-subscription.pdf"
+      ]
+    },
+    {
+      "id": "c3",
+      "files": [
+        "c3-cleaning.pdf"
+      ]
+    },
+    {
+      "id": "c4",
+      "files": [
+        "c4-copier.pdf"
+      ]
+    },
+    {
+      "id": "c5",
+      "files": [
+        "c5-courier.pdf"
+      ]
+    }
+  ],
+  "scanned": true
 }

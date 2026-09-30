@@ -110,3 +110,17 @@ describe('rules', () => {
     expect(r.reviewItems).toEqual([]);
   });
 });
+
+describe('extraction instructions', () => {
+  it('names the organisation and says the counterparty is the other party', async () => {
+    const { contractsInstructions, contractsInstructionsFor } = await import('../src/index.ts');
+    const text = contractsInstructionsFor('Marula Office Supplies (Pty) Ltd');
+    expect(text).toContain(contractsInstructions);
+    expect(text).toContain('The counterparty is the OTHER party, the one that is not "Marula Office Supplies (Pty) Ltd"');
+    expect(text).toContain('only after looking through every page');
+  });
+  it('without an organisation name it adds no party line', async () => {
+    const { contractsInstructionsFor } = await import('../src/index.ts');
+    expect(contractsInstructionsFor('  ')).not.toContain('Whose register this is');
+  });
+});

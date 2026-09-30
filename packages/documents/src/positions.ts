@@ -8,6 +8,10 @@ export interface FractionBox { x: number; y: number; w: number; h: number; r?: n
 
 const round6 = (n: number) => Math.round(n * 1e6) / 1e6;
 
+/** A word tilted less than this many degrees is treated as upright: scans give many words a tiny tilt from skew, which is not worth drawing. */
+export const TILT_MIN_DEGREES = 3;
+export const isTilted = (b: { r?: number }): boolean => Math.abs(b.r ?? 0) >= TILT_MIN_DEGREES;
+
 export function toFraction(box: Box, page: { width: number; height: number }): FractionBox {
   const f: FractionBox = {
     x: round6(box.x / page.width),

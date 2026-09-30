@@ -133,6 +133,7 @@ export default function DevSourceViewer() {
     () => [
       fromRecorded('demo-marula', 'pdfjs-local', 'extract-perfect', false, 'digital', 'Digital contracts', 'Five demo contracts as digital PDFs, with the answers a perfect extractor gives. Includes a clause replaced by an addendum (C1) and a conflict with two sources (C3).'),
       fromRecorded('scan-marula', 'llamaparse-agentic', 'extract-claude-sonnet-5-5', true, 'scanned', 'Scanned copies', 'The same contracts as photographed pages, read by LlamaParse and answered by Claude. Highlights are labelled approximate and padded sideways.'),
+      fromRecorded('layout-lakeside', 'llamaparse-cost_effective', 'extract-claude-sonnet-5-5', false, 'layout', 'Two-column contract with a stamp', 'A two-column sub-lease with a red RECEIVED stamp over clause 4.1, read by LlamaParse and answered by Claude. LlamaParse gave no word positions for the second-column part of clause 3 (those chips say “no highlight”), and the stamp confused the position of a word in clause 4.3 (that highlight is marked approximate).'),
       edgeCases(),
     ],
     [],

@@ -1,0 +1,106 @@
+{
+  "asAt": "2026-10-14",
+  "alertWindows": {
+    "attention": 30,
+    "upcoming": 90
+  },
+  "agreements": {
+    "l1": {
+      "fields": {
+        "counterparty": {
+          "value": "Kloof Storage (Pty) Ltd",
+          "source": [
+            "l1-1-1"
+          ]
+        },
+        "premises": {
+          "value": "Unit 12, Kloof Business Yard, Pinetown",
+          "source": [
+            "l1-2-1"
+          ]
+        },
+        "startDate": {
+          "value": "2026-08-01",
+          "source": [
+            "l1-3-1"
+          ]
+        },
+        "termMonths": {
+          "value": 24,
+          "source": [
+            "l1-3-2"
+          ]
+        },
+        "endDate": {
+          "value": "2028-07-31",
+          "source": [
+            "l1-3-2"
+          ],
+          "derived": "start + 24 months − 1 day"
+        },
+        "renewal": {
+          "value": {
+            "kind": "automatic",
+            "periodMonths": 12
+          },
+          "source": [
+            "l1-5-1"
+          ]
+        },
+        "notice": {
+          "value": {
+            "amount": 90,
+            "unit": "days",
+            "before": "renewal"
+          },
+          "source": [
+            "l1-5-2"
+          ]
+        },
+        "fee": {
+          "value": {
+            "cents": 1850000,
+            "per": "month",
+            "vat": "excluded"
+          },
+          "source": [
+            "l1-4-1"
+          ]
+        },
+        "feeChange": {
+          "value": {
+            "kind": "percent_escalation",
+            "percent": 7,
+            "every": "anniversary"
+          },
+          "source": [
+            "l1-4-2"
+          ]
+        },
+        "deposit": {
+          "value": 3700000,
+          "source": [
+            "l1-4-3"
+          ]
+        }
+      },
+      "flags": [],
+      "dates": [
+        {
+          "key": "cancellation_deadline",
+          "label": "Cancellation deadline",
+          "value": "2028-05-03",
+          "derivation": "2028-08-01 − 90 days",
+          "status": "later"
+        },
+        {
+          "key": "renewal",
+          "label": "Renewal date",
+          "value": "2028-08-01",
+          "derivation": "end date + 1 day",
+          "status": "later"
+        }
+      ]
+    }
+  }
+}
