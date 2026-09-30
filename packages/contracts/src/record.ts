@@ -4,6 +4,7 @@
 
 import { addDays, addMonths, type IsoDate } from '../../core/src/index.ts';
 import { BLANK, groundInDocument, normalise, type GroundingResult, type ParsedDocument, type ParsedPage } from '../../documents/src/index.ts';
+import { feeLinesOf, feeValueOf, mergeFee, scheduleSteps } from './fee.ts';
 import { checkValue } from './value-check.ts';
 import type { ContractsPreset } from './preset.ts';
 import type {
@@ -124,8 +125,32 @@ interface Resolved {
   items: ReviewItem[];
 }
 
-/** Applies the rules to one field's candidates, in the brief's order. */
+/** Whether a refused candidate says something other than the value that was recorded. Fee lines are compared line by line. */
+function differsFrom(recorded: CandidateValue | undefined, c: RecordCandidate): boolean {
+  const theirs = feeLinesOf(c.value);
+  const ours = feeLinesOf(recorded);
+  if (theirs.length && ours.length) return theirs.some((t) => !ours.some((o) => o.cents === t.cents && o.per.trim().toLowerCase() === t.per.trim().toLowerCase() && (o.vat ?? '') === (t.vat ?? '') && (o.from ?? '') === (t.from ?? '')));
+  return recorded === undefined || !sameValue(c.value, recorded);
+}
+
+/**
+ * Applies the rules to one field's candidates, in the brief's order. When a value stands (or "not stated" does) and
+ * another cited wording was refused with a different value, that is flagged too: the reviewer is told a differing
+ * wording was dropped, rather than never seeing it. Descriptive fields are left out of that.
+ */
 function resolveField(key: FieldKey, label: string, candidates: RecordCandidate[], parsed: Record<string, ParsedDocument>, required: boolean, descriptive: boolean): Resolved {
+  const r = resolveStanding(key, label, candidates, parsed, required, descriptive);
+  if (descriptive || (r.field.status !== 'recorded' && r.field.status !== 'not_stated')) return r;
+  const refused = candidates.filter((c) => !c.superseded && !isSupported(c) && c.value !== 'not_stated' && differsFrom(r.field.value, c));
+  if (refused.length) {
+    const reasons = [...new Set(refused.map(whyNot))].join('; ');
+    const standing = candidates.filter((c) => !c.superseded && isSupported(c));
+    r.items.push({ id: `refused:${key}`, kind: 'unclear', fieldKey: key, summary: `${label}: another cited wording was refused (${reasons})`, sources: [...standing, ...refused].map(toSource) });
+  }
+  return r;
+}
+
+function resolveStanding(key: FieldKey, label: string, candidates: RecordCandidate[], parsed: Record<string, ParsedDocument>, required: boolean, descriptive: boolean): Resolved {
   const field: RecordField = { key, label, status: 'recorded', candidates };
   const items: ReviewItem[] = [];
   const active = candidates.map((c, i) => ({ c, i })).filter(({ c }) => isSupported(c) && !c.superseded);
@@ -151,6 +176,16 @@ function resolveField(key: FieldKey, label: string, candidates: RecordCandidate[
     field.current = valued[0]!.i;
     field.value = valued[0]!.c.value;
     return { field, items };
+  }
+
+  // A fee is lines: steps by date and separate charges are merged, and only the same charge from the same date with two amounts is a conflict.
+  if (key === 'fee') {
+    const merged = mergeFee(valued.map(({ c }) => c.value));
+    if (merged.kind === 'lines') {
+      field.current = valued[merged.lines[0]!.index]!.i;
+      field.value = feeValueOf(merged.lines.map((m) => m.line));
+      return { field, items };
+    }
   }
 
   const distinct = valued.filter(({ c }, n) => valued.findIndex((o) => sameValue(o.c.value, c.value)) === n);
@@ -323,6 +358,35 @@ function deriveEndDate(fields: AgreementRecord['fields']): void {
   };
 }
 
+/**
+ * The fee change that follows from the fee's own steps: one charge with two or more dated lines is a schedule. Percentages,
+ * indexes and "unquantified" from the extractor are kept as sources but not compared with it. An extractor's own schedule
+ * that gives different amounts is a real disagreement, so nothing is derived and the ordinary rules flag it.
+ */
+function deriveFeeChange(fields: AgreementRecord['fields'], label: string | undefined): RecordField | undefined {
+  const fee = fields.fee;
+  if (!fee || fee.status !== 'recorded') return undefined;
+  const standing = fee.candidates.filter((c) => isSupported(c) && !c.superseded && c.value !== 'not_stated');
+  const merged = mergeFee(standing.map((c) => c.value));
+  if (merged.kind !== 'lines') return undefined;
+  const schedule = scheduleSteps(merged.lines);
+  if (!schedule) return undefined;
+  const old = fields.feeChange;
+  const clashes = old?.candidates.some((c) => {
+    const v = c.value as { kind?: string; steps?: number[] };
+    return isSupported(c) && !c.superseded && v.kind === 'schedule' && !sameValue(v.steps as unknown as CandidateValue, schedule.steps as unknown as CandidateValue);
+  });
+  if (clashes) return undefined;
+  return {
+    key: 'feeChange',
+    label: old?.label ?? label ?? 'Fee changes',
+    status: 'recorded',
+    value: { kind: 'schedule', steps: schedule.steps },
+    candidates: old?.candidates ?? [],
+    derived: { rule: 'steps of the fee lines, by date', from: ['fee'], sources: [...new Set(schedule.indexes)].map((i) => toSource(standing[i]!)) },
+  };
+}
+
 function recordTags(fields: AgreementRecord['fields']): string[] {
   const tags: string[] = [];
   const renewal = fields.renewal?.status === 'recorded' ? (fields.renewal.value as Renewal) : undefined;
@@ -402,6 +466,13 @@ export function buildRecord(input: BuildInput): AgreementRecord {
     const { field, items } = resolveField(key, spec?.label ?? key, list, parsed, spec?.required ?? false, spec?.descriptive === true);
     fields[key] = field;
     reviewItems.push(...items);
+  }
+
+  // Fee steps (a rent that steps up by date) say the fee change: calculated by code, not chosen by the extractor.
+  const stepped = deriveFeeChange(fields, labels.get('feeChange')?.label);
+  if (stepped) {
+    fields.feeChange = stepped;
+    for (let i = reviewItems.length - 1; i >= 0; i--) if (reviewItems[i]!.fieldKey === 'feeChange') reviewItems.splice(i, 1);
   }
 
   const record: AgreementRecord = {

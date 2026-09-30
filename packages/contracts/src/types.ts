@@ -15,7 +15,10 @@ export type FeeChange =
   | { kind: 'percent_escalation'; percent: number; every: string }
   | { kind: 'unquantified' }
   | { kind: 'none' };
-export type Fee = { cents: number; per: string; vat?: 'included' | 'excluded' } | { text: string };
+/** One line of a fee: one amount for one charge. `what` names the charge ("rent", "parking bay"); `from` is the date the line starts, only when the wording gives it. */
+export interface FeeLine { cents: number; per: string; vat?: 'included' | 'excluded'; what?: string; from?: IsoDate }
+/** An extractor gives one line, or words. A record with several lines holds them as `{ lines }`, built by code and never by the extractor. */
+export type Fee = FeeLine | { text: string } | { lines: FeeLine[] };
 
 /** Text for names and descriptions; ISO date for dates; whole months for termMonths; cents for deposit. */
 export type FieldValue = string | number | Notice | Renewal | FeeChange | Fee;

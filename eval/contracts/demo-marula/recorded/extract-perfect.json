@@ -72,7 +72,8 @@
         {
           "value": {
             "amount": 2,
-            "unit": "months"
+            "unit": "months",
+            "before": "expiry"
           },
           "quote": "The Tenant shall exercise the option by written notice to the Landlord given not less than two calendar months before the Expiry Date.",
           "file": "c1-lease.pdf",
@@ -94,14 +95,54 @@
       "fee": [
         {
           "value": {
-            "cents": 3200000,
+            "cents": 2743500,
             "per": "month",
-            "vat": "excluded"
+            "vat": "excluded",
+            "what": "rent",
+            "from": "2024-02-01"
           },
-          "quote": "The monthly Rent, excluding VAT, payable in terms of clause 5 is as follows:\n\nPeriod\tMonthly rent\tRate / m²\nYear 1 · 1 Feb 2024 – 31 Jan 2025\tR27 435.00\tR66.59\nYear 2 · 1 Feb 2025 – 31 Jan 2026\tR29 630.00\tR71.92\nYear 3 · 1 Feb 2026 – 31 Jan 2027\tR32 000.00\tR77.67",
+          "quote": "Year 1 · 1 Feb 2024 – 31 Jan 2025\tR27 435.00\tR66.59",
           "file": "c1-lease.pdf",
           "page": 6,
           "clause": "Sch. 2"
+        },
+        {
+          "value": {
+            "cents": 2963000,
+            "per": "month",
+            "vat": "excluded",
+            "what": "rent",
+            "from": "2025-02-01"
+          },
+          "quote": "Year 2 · 1 Feb 2025 – 31 Jan 2026\tR29 630.00\tR71.92",
+          "file": "c1-lease.pdf",
+          "page": 6,
+          "clause": "Sch. 2"
+        },
+        {
+          "value": {
+            "cents": 3200000,
+            "per": "month",
+            "vat": "excluded",
+            "what": "rent",
+            "from": "2026-02-01"
+          },
+          "quote": "Year 3 · 1 Feb 2026 – 31 Jan 2027\tR32 000.00\tR77.67",
+          "file": "c1-lease.pdf",
+          "page": 6,
+          "clause": "Sch. 2"
+        },
+        {
+          "value": {
+            "cents": 45000,
+            "per": "month",
+            "vat": "excluded",
+            "what": "parking bay"
+          },
+          "quote": "The 2 (two) additional bays are let at R450.00 per bay per month, excluding VAT, payable with the Rent.",
+          "file": "c1-addendum.pdf",
+          "page": 1,
+          "clause": "Add. 1 cl. 3"
         }
       ],
       "feeChange": [

@@ -3,7 +3,7 @@
 
 import type { IsoDate } from '../../packages/core/src/index.ts';
 import { chipText, type Box, type ParsedDocument } from '../../packages/documents/src/index.ts';
-import { dateStatus, sameValue, type AgreementRecord, type CandidateValue, type ContractsPreset, type FieldKey } from '../../packages/contracts/src/index.ts';
+import { dateStatus, feeLinesOf, sameValue, type AgreementRecord, type CandidateValue, type ContractsPreset, type FieldKey } from '../../packages/contracts/src/index.ts';
 
 interface ExpectedSource { value: CandidateValue; source: string[]; also?: string[] }
 export interface ExpectedField extends Partial<ExpectedSource> {
@@ -140,6 +140,20 @@ export function sameAnswer(got: CandidateValue, expected: CandidateValue): boole
   return sameValue(got, expected);
 }
 
+const perOf = (p: string) => (/month/i.test(p) ? 'month' : /year|annum/i.test(p) ? 'year' : p.trim().toLowerCase());
+/** A fee as its lines: amount, unit, VAT and start date. What the charge is called is free text and is not compared. */
+const feeShape = (v: CandidateValue | undefined) => {
+  const lines = feeLinesOf(v).map((l) => `${l.cents}|${perOf(l.per)}|${l.vat ?? ''}|${l.from ?? ''}`).sort();
+  return lines.length ? lines : undefined;
+};
+
+/** A fee is right when it has the same lines (in any order); free-text fees are compared loosely. */
+export function sameFee(got: CandidateValue, expected: CandidateValue): boolean {
+  const a = feeShape(got);
+  const b = feeShape(expected);
+  return a && b ? a.length === b.length && a.every((x, i) => x === b[i]) : sameAnswer(got, expected);
+}
+
 export function scoreAgreement(
   id: string,
   record: AgreementRecord,
@@ -167,7 +181,7 @@ export function scoreAgreement(
     } else if (e.value === 'not_stated' || e.value === 'blank') {
       ok = f?.status === e.value;
     } else {
-      ok = f?.status === 'recorded' && e.value !== undefined && sameAnswer(f.value!, e.value);
+      ok = f?.status === 'recorded' && e.value !== undefined && (key === 'fee' ? sameFee : sameAnswer)(f.value!, e.value);
     }
     if (ok && e.supersedes) {
       ok = !!f?.candidates.some((c) => c.superseded && sameValue(c.value, e.supersedes!.value));

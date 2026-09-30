@@ -2,9 +2,10 @@
 // statuses, and the preset searches. Statuses depend on asAt; nothing else does.
 
 import { addDays, dayNumber, formatDate, formatRand, type IsoDate } from '../../core/src/index.ts';
+import { currentFee } from './fee.ts';
 import type { ContractsPreset } from './preset.ts';
 import type {
-  AgreementRecord, AgreementStatus, CandidateValue, Fee, FeeChange, FieldKey, KeyDate, Notice, RecordField, Renewal, ReviewItem,
+  AgreementRecord, AgreementStatus, CandidateValue, Fee, FeeChange, FeeLine, FieldKey, KeyDate, Notice, RecordField, Renewal, ReviewItem,
 } from './types.ts';
 
 export type DateStatus = 'passed' | 'attention' | 'upcoming' | 'later';
@@ -54,7 +55,18 @@ export interface Register {
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
-function valueText(key: FieldKey, v: CandidateValue): string {
+const amountText = (l: FeeLine) => `${formatRand(l.cents)} per ${l.per}${l.vat === 'excluded' ? ' excl. VAT' : l.vat === 'included' ? ' incl. VAT' : ''}`;
+const named = (l: FeeLine) => (l.what ? `${l.what.charAt(0).toUpperCase()}${l.what.slice(1)} ` : '');
+
+/** A fee: one amount reads as before. Several lines read as each charge's current amount as at a date, with its start date; with no date, every line. */
+function feeText(f: Fee, asAt?: IsoDate): string {
+  if ('text' in f) return f.text;
+  if (!('lines' in f)) return amountText(f);
+  if (!asAt) return f.lines.map((l) => `${named(l)}${amountText(l)}${l.from ? ` from ${formatDate(l.from)}` : ''}`).join(' · ');
+  return currentFee(f, asAt).map(({ line, started }) => `${named(line)}${amountText(line)}${line.from ? ` (${started ? 'from' : 'starts'} ${formatDate(line.from)})` : ''}`).join(' · ');
+}
+
+function valueText(key: FieldKey, v: CandidateValue, asAt?: IsoDate): string {
   if (v === 'not_stated') return 'Not stated';
   if (v === 'blank') return 'Not stated (blank in signed copy)';
   switch (key) {
@@ -76,11 +88,8 @@ function valueText(key: FieldKey, v: CandidateValue): string {
       const before = { expiry: ' before expiry', renewal: ' before the renewal date', end_of_initial_period: ' before the end of the initial period' };
       return amount + (n.before ? before[n.before] : '');
     }
-    case 'fee': {
-      const f = v as Fee;
-      if ('text' in f) return f.text;
-      return `${formatRand(f.cents)} per ${f.per}${f.vat === 'excluded' ? ' excl. VAT' : f.vat === 'included' ? ' incl. VAT' : ''}`;
-    }
+    case 'fee':
+      return feeText(v as Fee, asAt);
     case 'feeChange': {
       const c = v as FeeChange;
       if (c.kind === 'schedule') return `Stepped: ${c.steps.map((s) => formatRand(s)).join(' · ')}`;
@@ -93,11 +102,11 @@ function valueText(key: FieldKey, v: CandidateValue): string {
 }
 
 /** How a field shows in the register. */
-export function fieldText(f: RecordField | undefined): string {
+export function fieldText(f: RecordField | undefined, asAt?: IsoDate): string {
   if (!f) return '';
   if (f.status === 'conflict') return 'Conflicting wording — up for review';
   if (f.status === 'not_verified') return 'Not verified — review';
-  return f.value === undefined ? '' : valueText(f.key, f.value);
+  return f.value === undefined ? '' : valueText(f.key, f.value, asAt);
 }
 
 const text = (f: RecordField | undefined) => (f?.status === 'recorded' && typeof f.value === 'string' ? f.value : '');
@@ -130,7 +139,7 @@ export function register(records: AgreementRecord[], asAt: IsoDate, preset: Cont
       endOrTerm: end ? fieldText(end) : fieldText(r.fields.termMonths),
       renewal: fieldText(r.fields.renewal),
       notice: fieldText(r.fields.notice),
-      fee: fieldText(r.fields.fee),
+      fee: fieldText(r.fields.fee, asAt),
       nextKeyDate: dates.find((d) => d.status && d.status !== 'passed'),
       status: r.status,
       openItems: r.reviewItems.filter((i) => !i.decision).length,

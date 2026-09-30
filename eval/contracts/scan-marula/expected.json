@@ -12,9 +12,9 @@
         "notice": {
           "value": { "amount": 3, "unit": "months", "before": "expiry" },
           "source": ["c1-add-2"],
-          "supersedes": { "value": { "amount": 2, "unit": "months" }, "source": ["c1-18-2"] }
+          "supersedes": { "value": { "amount": 2, "unit": "months", "before": "expiry" }, "source": ["c1-18-2"] }
         },
-        "fee": { "value": { "cents": 3200000, "per": "month", "vat": "excluded" }, "source": ["c1-sch2"] },
+        "fee": { "value": { "lines": [{ "what": "rent", "from": "2024-02-01", "cents": 2743500, "per": "month", "vat": "excluded" }, { "what": "rent", "from": "2025-02-01", "cents": 2963000, "per": "month", "vat": "excluded" }, { "what": "rent", "from": "2026-02-01", "cents": 3200000, "per": "month", "vat": "excluded" }, { "what": "parking bay", "cents": 45000, "per": "month", "vat": "excluded" }] }, "source": ["c1-sch2", "c1-add-3"] },
         "feeChange": { "value": { "kind": "schedule", "steps": [2743500, 2963000, 3200000] }, "source": ["c1-sch2"], "also": ["c1-5-2"] },
         "deposit": { "value": 6400000, "source": ["c1-6-1"] }
       },

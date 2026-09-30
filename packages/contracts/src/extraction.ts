@@ -39,8 +39,10 @@ const VALUE_SCHEMAS: Record<FieldKey, object> = {
           cents: { type: 'integer', description: 'Amount in cents: R4 850.00 = 485000' },
           per: { type: 'string', description: 'e.g. "month", "year"' },
           vat: { type: 'string', enum: ['included', 'excluded'], description: 'Only when the wording says' },
+          what: { type: 'string', description: 'The charge this line is for, e.g. "rent", "subscription", "parking bay", "operating costs". Required on every line.' },
+          from: { ...isoDate, description: 'The date this amount starts, only when the quoted wording gives that date. Never calculate one.' },
         },
-        required: ['cents', 'per'],
+        required: ['cents', 'per', 'what'],
       },
       { type: 'object', properties: { text: { type: 'string' } }, required: ['text'], description: 'When no single amount is stated' },
     ],
@@ -113,7 +115,8 @@ Rules:
 - A heading or title that appears more than once on a page is not a good quote. Quote the sentence that states the value instead.
 - Use "not_stated" when the agreement doesn't give the value, and quote the nearest relevant clause.
 - State only what is written. Don't calculate end dates, deadlines or amounts, and don't say whether a term is enforceable, reasonable or advisable.
-- A fee change with no amount, percentage, cap or index is { "kind": "unquantified" }.
+- A fee is a list of lines, one candidate per line, each with its own quote: one table row or one clause. A rent that steps up by year is one line per year, each with "from" set to the date that year starts, taken from the quoted row. A separate charge (rent, parking, operating costs, a levy) is its own line. Every line needs "what", the name of the charge; two different charges never share a "what". Set "from" only when the quote gives the date. Don't calculate dates or amounts.
+- Give a feeChange only for what the fee lines cannot say: a percentage escalation, an index or cap, or { "kind": "unquantified" } when there is no amount, percentage, cap or index. Steps that are already fee lines with "from" dates need no feeChange.
 - List every addendum clause that replaces or changes an earlier clause under "amendments", with the number of the clause it changes. Also record the addendum's new wording as a candidate for the affected field, and keep the original clause's candidate.
 - Money in cents (R32 000.00 = 3200000). Dates as YYYY-MM-DD. Terms in months (3 years = 36).
 - Give the clause label as it is written in the document ("cl. 18.2", "Order form item 4", "Sch. 2", "Add. 1 cl. 2").`;

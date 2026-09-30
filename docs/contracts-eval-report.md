@@ -13,7 +13,7 @@ Made-up documents only. Claude Sonnet 5.5, LlamaParse EU with pinned versions (c
 | `watermark-marula` | The same digital PDFs with three dark diagonal SAMPLE marks per page | cost-effective |
 | `layout-lakeside` | A different layout: two columns in small type, running on to a second page, with a red RECEIVED stamp lying over a clause | cost-effective |
 
-121 field answers per run (37 + 37 + 37 + 10), each checked against a hand-written answer key. The free check (a perfect extractor on the digital PDFs, no network) must stay at `fields 84/84 · grounding 103/103 · highlights 87/87 · flags 6/6 (0 unexpected) · key dates 18/18`.
+121 field answers per run (37 + 37 + 37 + 10), each checked against a hand-written answer key. The free check (a perfect extractor on the digital PDFs, no network) must stay at `fields 84/84 · grounding 109/109 · highlights 93/93 · flags 6/6 (0 unexpected) · key dates 18/18`.
 
 ## Results (three Claude runs)
 

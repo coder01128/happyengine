@@ -138,7 +138,7 @@ describe('register, preset searches and reminders', () => {
     expect(reg.rows.map((r) => `${r.ref} ${r.status} ${r.nextKeyDate?.date ?? '-'} ${r.openItems}`)).toEqual([
       'C1 ready 2026-10-31 0', 'C2 flagged 2026-12-31 1', 'C3 flagged - 1', 'C4 ready 2026-10-31 0', 'C5 flagged - 1',
     ]);
-    expect(reg.rows[0]).toMatchObject({ counterparty: 'Oakridge Property Holdings (Pty) Ltd', fee: 'R32 000.00 per month excl. VAT', notice: '3 calendar months before expiry' });
+    expect(reg.rows[0]).toMatchObject({ counterparty: 'Oakridge Property Holdings (Pty) Ltd', fee: 'Rent R32 000.00 per month excl. VAT (from 1 Feb 2026) · Parking bay R450.00 per month excl. VAT', notice: '3 calendar months before expiry' });
   });
 
   it('answers the four preset searches from the data', () => {

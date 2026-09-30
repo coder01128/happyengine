@@ -31,7 +31,8 @@ export function checkValue(key: FieldKey, value: CandidateValue, text: string): 
     case 'notice':
       return typeof o?.amount === 'number' ? outcome(o.unit === 'months' ? months(o.amount, numbersIn(text)) : numbersIn(text).includes(o.amount)) : 'skipped';
     case 'fee':
-      return typeof o?.cents === 'number' ? outcome(centsIn(text).includes(o.cents)) : 'skipped';
+      // A fee line: its amount, and the date it starts when it has one, must both be in the wording.
+      return typeof o?.cents === 'number' ? outcome(centsIn(text).includes(o.cents) && (typeof o.from !== 'string' || datesIn(text).includes(o.from))) : 'skipped';
     case 'deposit':
       return typeof value === 'number' ? outcome(centsIn(text).includes(value)) : 'skipped';
     case 'feeChange': {
