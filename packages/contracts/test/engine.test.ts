@@ -42,11 +42,14 @@ describe('buildRecord on the demo agreements', () => {
     }
   });
 
-  it('raises exactly the 3 expected review items', () => {
+  it('raises exactly the 6 expected review items (the demo gaps: a conflict, a blank, a fee change not quantified, and the courier agreement unstated renewal, notice and end date)', () => {
     expect(records.flatMap((r) => r.reviewItems.map((i) => `${r.ref} ${i.kind} ${i.fieldKey}`))).toEqual([
       'C2 unclear feeChange',
       'C3 conflict notice',
       'C5 blank termMonths',
+      'C5 unclear renewal',
+      'C5 unclear notice',
+      'C5 unclear endDate',
     ]);
   });
 
@@ -136,7 +139,7 @@ describe('register, preset searches and reminders', () => {
 
   it('shows each row’s next key date and status', () => {
     expect(reg.rows.map((r) => `${r.ref} ${r.status} ${r.nextKeyDate?.date ?? '-'} ${r.openItems}`)).toEqual([
-      'C1 ready 2026-10-31 0', 'C2 flagged 2026-12-31 1', 'C3 flagged - 1', 'C4 ready 2026-10-31 0', 'C5 flagged - 1',
+      'C1 ready 2026-10-31 0', 'C2 flagged 2026-12-31 1', 'C3 flagged - 1', 'C4 ready 2026-10-31 0', 'C5 flagged - 4',
     ]);
     expect(reg.rows[0]).toMatchObject({ counterparty: 'Oakridge Property Holdings (Pty) Ltd', fee: 'Rent R32 000.00 per month excl. VAT (from 1 Feb 2026) · Parking bay R450.00 per month excl. VAT', notice: '3 calendar months before expiry' });
   });
@@ -150,7 +153,7 @@ describe('register, preset searches and reminders', () => {
       '3 agreements renew or continue automatically [C2,C3,C4]',
       '2 notice deadlines fall on or before 12 Jan 2027 [C1,C2] passed: C4 2026-07-31',
       '3 fees change during the term or on renewal [C1,C2,C4]',
-      '3 terms are up for review [C2,C3,C5]',
+      '6 terms are up for review [C2,C3,C5]',
     ]);
   });
 

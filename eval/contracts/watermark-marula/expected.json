@@ -5,6 +5,8 @@
     "c1": {
       "fields": {
         "counterparty": { "value": "Oakridge Property Holdings (Pty) Ltd", "source": ["c1-1-1"] },
+
+        "agreementCategory": { "value": "lease", "source": [] },
         "startDate": { "value": "2024-02-01", "source": ["c1-def-comm"] },
         "endDate": { "value": "2027-01-31", "source": ["c1-def-period"], "also": ["c1-4-1"] },
         "termMonths": { "value": 36, "source": ["c1-4-1"] },
@@ -27,6 +29,8 @@
     "c2": {
       "fields": {
         "counterparty": { "value": "Ledgerline Software (Pty) Ltd", "source": ["c2-of-1"] },
+
+        "agreementCategory": { "value": "subscription", "source": [] },
         "startDate": { "value": "2026-03-01", "source": ["c2-of-start"] },
         "termMonths": { "value": 12, "source": ["c2-of-term"] },
         "endDate": { "value": "2027-02-28", "source": ["c2-of-term"], "derived": "start + 12 months − 1 day" },
@@ -46,6 +50,8 @@
     "c3": {
       "fields": {
         "counterparty": { "value": "BrightSpan Cleaning Services CC", "source": ["c3-1-1"] },
+
+        "agreementCategory": { "value": "service", "source": [] },
         "startDate": { "value": "2026-04-01", "source": ["c3-3-1"] },
         "termMonths": { "value": 6, "source": ["c3-3-1"] },
         "renewal": { "value": { "kind": "month_to_month" }, "source": ["c3-3-2"] },
@@ -55,7 +61,7 @@
             { "value": { "amount": 1, "unit": "months" }, "source": ["c3-s1-4"] }
           ]
         },
-        "fee": { "value": { "cents": 690000, "per": "month" }, "source": ["c3-s1-1"] }
+        "fee": { "value": { "cents": 690000, "per": "month", "vat": "not_stated" }, "source": ["c3-s1-1"] }
       },
       "flags": [
         { "kind": "conflict", "field": "notice", "about": "30 days vs one calendar month" }
@@ -68,12 +74,14 @@
     "c4": {
       "fields": {
         "counterparty": { "value": "Sample Office Equipment Finance (Pty) Ltd", "source": ["c4-1-1"] },
+
+        "agreementCategory": { "value": "rental", "source": [] },
         "startDate": { "value": "2023-11-01", "source": ["c4-2-1"] },
         "endDate": { "value": "2026-10-31", "source": ["c4-2-1"] },
         "termMonths": { "value": 36, "source": ["c4-2-1"] },
         "renewal": { "value": { "kind": "month_to_month" }, "source": ["c4-12-3"], "note": "if no notice given" },
         "notice": { "value": { "amount": 3, "unit": "months", "before": "end_of_initial_period" }, "source": ["c4-12-2"] },
-        "fee": { "value": { "cents": 198000, "per": "month", "vat": "excluded" }, "source": ["c4-6-1"] },
+        "fee": { "value": { "lines": [{ "what": "rental", "cents": 198000, "per": "month", "vat": "excluded" }, { "what": "mono copy charge", "cents": 19, "per": "copy", "vat": "not_stated" }, { "what": "colour copy charge", "cents": 145, "per": "copy", "vat": "not_stated" }] }, "source": ["c4-6-1", "c4-copy"] },
         "feeChange": { "value": { "kind": "percent_escalation", "percent": 10, "every": "anniversary" }, "source": ["c4-6-2"] }
       },
       "flags": [],
@@ -85,14 +93,19 @@
     "c5": {
       "fields": {
         "counterparty": { "value": "Coastal Couriers (Pty) Ltd", "source": ["c5-1-1"] },
+
+        "agreementCategory": { "value": "service", "source": [] },
         "startDate": { "value": "2025-06-01", "source": ["c5-2-1"] },
         "termMonths": { "value": "blank", "source": ["c5-2-2"] },
         "renewal": { "value": "not_stated", "source": ["c5-2-2"] },
         "notice": { "value": "not_stated", "source": ["c5-9-1"] },
-        "fee": { "value": { "text": "Rates per Schedule A" }, "source": ["c5-sa"] }
+        "fee": { "value": { "lines": [{ "what": "Same-day, within city", "cents": 18500, "per": "consignment", "vat": "excluded" }, { "what": "Overnight, national", "cents": 24000, "per": "consignment", "vat": "excluded" }, { "what": "Economy, 2–3 days, national", "cents": 14500, "per": "consignment", "vat": "excluded" }, { "what": "Per kg over 5 kg", "cents": 1800, "per": "kg", "vat": "excluded" }, { "what": "Outlying areas surcharge", "cents": 9500, "per": "consignment", "vat": "excluded" }, { "what": "After-hours collection", "cents": 22000, "per": "collection", "vat": "excluded" }, { "what": "Waiting time", "cents": 6000, "per": "15 minutes", "vat": "excluded" }] }, "source": ["c5-sa"] }
       },
       "flags": [
-        { "kind": "blank", "field": "termMonths", "about": "blank in signed copy" }
+        { "kind": "blank", "field": "termMonths", "about": "blank in signed copy" },
+        { "kind": "unclear", "field": "endDate", "about": "end date not stated (the term is blank)" },
+        { "kind": "unclear", "field": "renewal", "about": "renewal not stated" },
+        { "kind": "unclear", "field": "notice", "about": "notice not stated" }
       ],
       "dates": []
     }

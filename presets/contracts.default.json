@@ -15,8 +15,24 @@
     { "key": "fee", "label": "Fee", "required": false },
     { "key": "feeChange", "label": "Fee changes", "required": false },
     { "key": "deposit", "label": "Deposit", "required": false },
-    { "key": "scope", "label": "Scope", "required": false, "descriptive": true }
+    { "key": "scope", "label": "Scope", "required": false, "descriptive": true },
+    { "key": "agreementCategory", "label": "Category", "required": false, "repeatedQuoteOk": true }
   ],
+  "categories": [
+    { "id": "lease", "label": "Lease", "required": ["renewal", "notice", "endDate"], "confirm": false },
+    { "id": "licence", "label": "Licence", "required": ["renewal", "notice", "endDate"], "confirm": false },
+    { "id": "loan", "label": "Loan", "required": [], "confirm": true },
+    { "id": "nda", "label": "Non-disclosure agreement", "required": [], "confirm": true },
+    { "id": "order", "label": "Once-off order", "required": [], "confirm": true },
+    { "id": "other", "label": "Other", "required": ["renewal", "notice", "endDate"], "confirm": false },
+    { "id": "poa", "label": "Power of attorney", "required": [], "confirm": true },
+    { "id": "rental", "label": "Rental", "required": ["renewal", "notice", "endDate"], "confirm": false },
+    { "id": "sale", "label": "Sale or purchase", "required": [], "confirm": true },
+    { "id": "service", "label": "Service", "required": ["renewal", "notice", "endDate"], "confirm": false },
+    { "id": "settlement", "label": "Settlement", "required": [], "confirm": true },
+    { "id": "subscription", "label": "Subscription", "required": ["renewal", "notice", "endDate"], "confirm": false }
+  ],
+  "uncategorised": { "required": ["renewal", "notice", "endDate"] },
   "alertWindows": { "attention": 30, "upcoming": 90 },
   "reviewOptions": [
     { "id": "confirm", "label": "Confirm recorded value", "outcome": "reviewed", "singleValueOnly": true },

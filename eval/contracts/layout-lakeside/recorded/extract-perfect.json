@@ -69,7 +69,8 @@
           "value": {
             "cents": 1850000,
             "per": "month",
-            "vat": "excluded"
+            "vat": "excluded",
+            "what": "rent"
           },
           "quote": "The monthly rent is R18 500.00 excluding VAT, payable in advance on or before the first Business Day of each month, without deduction or set-off.",
           "file": "lakeside-sublease.pdf",
@@ -97,6 +98,15 @@
           "file": "lakeside-sublease.pdf",
           "page": 1,
           "clause": "cl. 4.3"
+        }
+      ],
+      "agreementCategory": [
+        {
+          "value": "lease",
+          "quote": "This sub-lease is entered into between Kloof Storage",
+          "file": "lakeside-sublease.pdf",
+          "page": 1,
+          "clause": "cl. 1.1"
         }
       ]
     }

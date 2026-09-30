@@ -7,6 +7,8 @@ const NOT_STATED_OR_BLANK = { type: 'string', enum: ['not_stated', 'blank'] };
 const text = { type: 'string' };
 const isoDate = { type: 'string', pattern: '^\\d{4}-\\d{2}-\\d{2}$', description: 'ISO date, YYYY-MM-DD' };
 
+export const AGREEMENT_CATEGORIES = ['lease', 'licence', 'loan', 'nda', 'order', 'other', 'poa', 'rental', 'sale', 'service', 'settlement', 'subscription'] as const;
+
 const VALUE_SCHEMAS: Record<FieldKey, object> = {
   counterparty: { ...text, description: 'The other party’s name as written, without "(sample)" or similar markers' },
   agreementType: { ...text, description: 'Short type, e.g. "Office lease", "Software subscription"' },
@@ -38,13 +40,13 @@ const VALUE_SCHEMAS: Record<FieldKey, object> = {
         properties: {
           cents: { type: 'integer', description: 'Amount in cents: R4 850.00 = 485000' },
           per: { type: 'string', description: 'e.g. "month", "year"' },
-          vat: { type: 'string', enum: ['included', 'excluded'], description: 'Only when the wording says' },
+          vat: { type: 'string', enum: ['excluded', 'included', 'not_stated'], description: 'Required on every amount. "excluded" or "included" as the wording says (a note on the schedule such as "Rates exclude VAT" applies to its rows); "not_stated" when the document does not say.' },
           what: { type: 'string', description: 'The charge this line is for, e.g. "rent", "subscription", "parking bay", "operating costs". Required on every line.' },
           from: { ...isoDate, description: 'The date this amount starts, only when the quoted wording gives that date. Never calculate one.' },
         },
-        required: ['cents', 'per', 'what'],
+        required: ['cents', 'per', 'what', 'vat'],
       },
-      { type: 'object', properties: { text: { type: 'string' } }, required: ['text'], description: 'When no single amount is stated' },
+      { type: 'object', properties: { text: { type: 'string' }, what: { type: 'string', description: 'The charge in words, e.g. "insurance levy"' } }, required: ['text', 'what'], description: 'A charge with no amount in rand (a percentage, "at cost"), or a fee with no single amount' },
     ],
   },
   feeChange: {
@@ -56,6 +58,7 @@ const VALUE_SCHEMAS: Record<FieldKey, object> = {
   },
   deposit: { type: 'integer', description: 'Amount in cents' },
   scope: text,
+  agreementCategory: { type: 'string', enum: [...AGREEMENT_CATEGORIES], description: 'What kind of agreement this is, from the list' },
 };
 
 const candidate = (key: FieldKey) => ({
@@ -72,7 +75,7 @@ const candidate = (key: FieldKey) => ({
 
 export const FIELD_KEYS: FieldKey[] = [
   'counterparty', 'agreementType', 'premises', 'startDate', 'endDate', 'termMonths',
-  'renewal', 'notice', 'fee', 'feeChange', 'deposit', 'scope',
+  'renewal', 'notice', 'fee', 'feeChange', 'deposit', 'scope', 'agreementCategory',
 ];
 
 export const contractsSchema = {
@@ -115,10 +118,11 @@ Rules:
 - A heading or title that appears more than once on a page is not a good quote. Quote the sentence that states the value instead.
 - Use "not_stated" when the agreement doesn't give the value, and quote the nearest relevant clause.
 - State only what is written. Don't calculate end dates, deadlines or amounts, and don't say whether a term is enforceable, reasonable or advisable.
-- A fee is a list of lines, one candidate per line, each with its own quote: one table row or one clause. A rent that steps up by year is one line per year, each with "from" set to the date that year starts, taken from the quoted row. A separate charge (rent, parking, operating costs, a levy) is its own line. Every line needs "what", the name of the charge; two different charges never share a "what". Set "from" only when the quote gives the date. Don't calculate dates or amounts.
+- A fee is a list of lines, one candidate per line, each with its own quote: one table row or one clause. A rent that steps up by year is one line per year, each with "from" set to the date that year starts, taken from the quoted row. A separate charge (rent, parking, operating costs, a levy) is its own line. Every line needs "what", the name of the charge; two different charges never share a "what". Every amount line also needs "vat": "excluded" or "included" as the wording says (a note such as "Rates exclude VAT" applies to the rows above it), or "not_stated" when the document does not say. A charge with no amount in rand (a percentage levy, "at cost") is a { "text", "what" } line. Set "from" only when the quote gives the date. Don't calculate dates or amounts. Give every rate or charge in a schedule or rate card as its own line; don't stop after the first few.
 - Give a feeChange only for what the fee lines cannot say: a percentage escalation, an index or cap, or { "kind": "unquantified" } when there is no amount, percentage, cap or index. Steps that are already fee lines with "from" dates need no feeChange.
 - List every addendum clause that replaces or changes an earlier clause under "amendments", with the number of the clause it changes. Also record the addendum's new wording as a candidate for the affected field, and keep the original clause's candidate.
 - Money in cents (R32 000.00 = 3200000). Dates as YYYY-MM-DD. Terms in months (3 years = 36).
+- agreementCategory: the one kind that fits, from the list. lease: premises let to a tenant (also sub-lease, storage). rental: equipment or vehicle hire. subscription: software or a membership paid periodically. service: a supplier does work or supplies a service over time (cleaning, courier, maintenance, security, support). licence: a right to use software or IP for a term. nda: confidentiality only. sale: a sale or purchase of goods or property. order: a once-off order or quote. settlement, poa (power of attorney), loan. other: none of these. Quote the title or the clause that says what the agreement is.
 - Give the clause label as it is written in the document ("cl. 18.2", "Order form item 4", "Sch. 2", "Add. 1 cl. 2").`;
 
 

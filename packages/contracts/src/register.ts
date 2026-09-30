@@ -2,10 +2,10 @@
 // statuses, and the preset searches. Statuses depend on asAt; nothing else does.
 
 import { addDays, dayNumber, formatDate, formatRand, type IsoDate } from '../../core/src/index.ts';
-import { currentFee } from './fee.ts';
+import { currentFee, isFeeLine, isFeeText } from './fee.ts';
 import type { ContractsPreset } from './preset.ts';
 import type {
-  AgreementRecord, AgreementStatus, CandidateValue, Fee, FeeChange, FeeLine, FieldKey, KeyDate, Notice, RecordField, Renewal, ReviewItem,
+  AgreementRecord, AgreementStatus, CandidateValue, Fee, FeeChange, FeeEntry, FeeLine, FieldKey, KeyDate, Notice, RecordField, Renewal, ReviewItem,
 } from './types.ts';
 
 export type DateStatus = 'passed' | 'attention' | 'upcoming' | 'later';
@@ -55,15 +55,18 @@ export interface Register {
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
-const amountText = (l: FeeLine) => `${formatRand(l.cents)} per ${l.per}${l.vat === 'excluded' ? ' excl. VAT' : l.vat === 'included' ? ' incl. VAT' : ''}`;
-const named = (l: FeeLine) => (l.what ? `${l.what.charAt(0).toUpperCase()}${l.what.slice(1)} ` : '');
+const vatText = (l: FeeLine) => (l.vat === 'excluded' ? ' excl. VAT' : l.vat === 'included' ? ' incl. VAT' : l.vat === 'not_stated' ? ' (VAT not stated)' : '');
+const amountText = (l: FeeLine) => `${formatRand(l.cents)} per ${l.per}${vatText(l)}`;
+const named = (l: FeeEntry) => (l.what ? `${l.what.charAt(0).toUpperCase()}${l.what.slice(1)} ` : '');
 
-/** A fee: one amount reads as before. Several lines read as each charge's current amount as at a date, with its start date; with no date, every line. */
+/** A fee: one amount reads as before. Several entries read as each charge's current amount as at a date, with its start date, then the charges in words; with no date, every line. */
 function feeText(f: Fee, asAt?: IsoDate): string {
-  if ('text' in f) return f.text;
-  if (!('lines' in f)) return amountText(f);
-  if (!asAt) return f.lines.map((l) => `${named(l)}${amountText(l)}${l.from ? ` from ${formatDate(l.from)}` : ''}`).join(' · ');
-  return currentFee(f, asAt).map(({ line, started }) => `${named(line)}${amountText(line)}${line.from ? ` (${started ? 'from' : 'starts'} ${formatDate(line.from)})` : ''}`).join(' · ');
+  if (!('lines' in f)) return 'text' in f ? f.text : amountText(f);
+  const words = f.lines.filter(isFeeText).map((l) => `${named(l)}${l.text}`);
+  const amounts = asAt
+    ? currentFee(f, asAt).map(({ line, started }) => `${named(line)}${amountText(line)}${line.from ? ` (${started ? 'from' : 'starts'} ${formatDate(line.from)})` : ''}`)
+    : f.lines.filter(isFeeLine).map((l) => `${named(l)}${amountText(l)}${l.from ? ` from ${formatDate(l.from)}` : ''}`);
+  return [...amounts, ...words].join(' · ');
 }
 
 function valueText(key: FieldKey, v: CandidateValue, asAt?: IsoDate): string {

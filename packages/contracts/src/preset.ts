@@ -24,7 +24,11 @@ export interface ContractsPreset {
   /** Display order in the register. A required field that isn't found is flagged for review. descriptive: free-text wording
    *  (a type, a scope). Different wordings, or a quote in several places, are recorded with every source and never flagged;
    *  the first supported wording is shown. Dates, money and notice are never descriptive. */
-  fields: { key: string; label: string; required: boolean; descriptive?: boolean }[];
+  fields: { key: string; label: string; required: boolean; descriptive?: boolean; repeatedQuoteOk?: boolean }[];
+  /** Kinds of agreement, alphabetical by label. required: fields that must be stated for this kind ("not stated" is flagged). confirm: a person must confirm the category, because the required fields are not applied to it. */
+  categories: { id: string; label: string; required: string[]; confirm: boolean }[];
+  /** Required fields for an agreement with no usable category (missing, disputed or unknown). */
+  uncategorised: { required: string[] };
   /** Days before a key date when it shows as "Needs attention" and "Upcoming". */
   alertWindows: { attention: number; upcoming: number };
   /** Choices a reviewer has for a flagged term, alphabetical by label. singleValueOnly: not offered on conflicts. */
@@ -84,10 +88,37 @@ function problemsWith(p: unknown): string[] {
         return;
       }
       need(f.descriptive === undefined || typeof f.descriptive === 'boolean', `fields.${f.key}.descriptive: must be true or false`);
+      need(f.repeatedQuoteOk === undefined || typeof f.repeatedQuoteOk === 'boolean', `fields.${f.key}.repeatedQuoteOk: must be true or false`);
       need(!seen.has(f.key), `fields.${f.key}: listed twice`);
       seen.add(f.key);
     });
   }
+
+  const fieldKeys = new Set(Array.isArray(p.fields) ? p.fields.map((f: unknown) => (isObject(f) ? f.key : undefined)) : []);
+  const requiredList = (where: string, v: unknown) => {
+    need(Array.isArray(v) && v.every((k) => typeof k === 'string' && fieldKeys.has(k)), `${where}: must be a list of field keys from fields`);
+  };
+  if (!Array.isArray(p.categories) || p.categories.length === 0) problems.push('categories: needs at least one category');
+  else {
+    const seen = new Set<string>();
+    const labels: string[] = [];
+    p.categories.forEach((c: unknown, i) => {
+      if (!isObject(c) || !isText(c.id) || !isText(c.label)) {
+        problems.push(`categories[${i}]: needs id and label`);
+        return;
+      }
+      requiredList(`categories.${c.id}.required`, c.required);
+      need(typeof c.confirm === 'boolean', `categories.${c.id}.confirm: must be true or false`);
+      need(!seen.has(c.id), `categories.${c.id}: listed twice`);
+      seen.add(c.id);
+      labels.push(c.label);
+    });
+    const sorted = [...labels].sort((a, b) => a.localeCompare(b, 'en'));
+    need(labels.every((l, i) => l === sorted[i]), 'categories: must be in alphabetical order by label');
+    need(seen.has('other'), 'categories: needs an "other" category');
+  }
+  if (!isObject(p.uncategorised)) problems.push('uncategorised: missing');
+  else requiredList('uncategorised.required', p.uncategorised.required);
 
   const w = p.alertWindows;
   if (!isObject(w) || !isWhole(w.attention, 0) || !isWhole(w.upcoming, 0)) {

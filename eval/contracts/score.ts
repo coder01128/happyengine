@@ -126,7 +126,7 @@ function unionBox(list: Box[]): Box {
 const show = (v: unknown) => (v === undefined ? 'nothing' : JSON.stringify(v));
 
 const wordsOf = (t: string) => t.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
-const isText = (v: unknown): v is { text: string } => !!v && typeof v === 'object' && typeof (v as { text?: unknown }).text === 'string' && Object.keys(v).length === 1;
+const isText = (v: unknown): v is { text: string } => !!v && typeof v === 'object' && typeof (v as { text?: unknown }).text === 'string' && Object.keys(v).every((k) => k === 'text' || k === 'what');
 
 /**
  * Whether a recorded value is the expected one. Free-text values ({ text }) are worded differently on every run,
@@ -140,18 +140,27 @@ export function sameAnswer(got: CandidateValue, expected: CandidateValue): boole
   return sameValue(got, expected);
 }
 
-const perOf = (p: string) => (/month/i.test(p) ? 'month' : /year|annum/i.test(p) ? 'year' : p.trim().toLowerCase());
-/** A fee as its lines: amount, unit, VAT and start date. What the charge is called is free text and is not compared. */
-const feeShape = (v: CandidateValue | undefined) => {
-  const lines = feeLinesOf(v).map((l) => `${l.cents}|${perOf(l.per)}|${l.vat ?? ''}|${l.from ?? ''}`).sort();
-  return lines.length ? lines : undefined;
-};
+const unitOf = (p: string) => (/month/i.test(p) ? 'month' : /year|annum/i.test(p) ? 'year' : p.trim().toLowerCase());
+/** "kg" and "kg over 5 kg" are the same unit: one contains the other. */
+const sameUnit = (a: string, b: string) => { const x = unitOf(a); const y = unitOf(b); return x === y || x.includes(y) || y.includes(x); };
 
-/** A fee is right when it has the same lines (in any order); free-text fees are compared loosely. */
+/**
+ * A fee is right when it has the same amount lines (in any order): the amount, VAT status (excluding, including or not
+ * stated; a line with none is wrong), start date and unit. What a charge is called is free text and is not compared, and
+ * charges in words are left out. A free-text answer key is compared loosely.
+ */
 export function sameFee(got: CandidateValue, expected: CandidateValue): boolean {
-  const a = feeShape(got);
-  const b = feeShape(expected);
-  return a && b ? a.length === b.length && a.every((x, i) => x === b[i]) : sameAnswer(got, expected);
+  const g = feeLinesOf(got);
+  const e = feeLinesOf(expected);
+  if (!g.length && !e.length) return sameAnswer(got, expected);
+  if (g.length !== e.length) return false;
+  const used = new Set<number>();
+  return e.every((x) => {
+    const at = g.findIndex((y, i) => !used.has(i) && y.cents === x.cents && (y.vat ?? '') === (x.vat ?? '') && (y.from ?? '') === (x.from ?? '') && sameUnit(y.per, x.per));
+    if (at < 0) return false;
+    used.add(at);
+    return true;
+  });
 }
 
 export function scoreAgreement(

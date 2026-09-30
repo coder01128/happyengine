@@ -6,7 +6,8 @@ import { describe, expect, it } from 'vitest';
 import type { ParsedDocument, ParsedPage, Word } from '../../documents/src/index.ts';
 import { buildRecord, sameValue, validateContractsPreset, type Candidate, type Extraction } from '../src/index.ts';
 
-const preset = validateContractsPreset(JSON.parse(readFileSync(join(import.meta.dirname, '..', '..', '..', 'presets', 'contracts.default.json'), 'utf8')));
+// These tests are about one rule each: the required-field checks of the categories are switched off here (see categories.test.ts).
+const preset = { ...validateContractsPreset(JSON.parse(readFileSync(join(import.meta.dirname, '..', '..', '..', 'presets', 'contracts.default.json'), 'utf8'))), uncategorised: { required: [] as string[] } };
 
 function page(text: string, n = 1): ParsedPage {
   const words: Word[] = [];

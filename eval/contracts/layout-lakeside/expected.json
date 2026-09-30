@@ -13,6 +13,7 @@
             "l1-1-1"
           ]
         },
+        "agreementCategory": { "value": "lease", "source": [] },
         "premises": {
           "value": "Unit 12, Kloof Business Yard, Pinetown",
           "source": [

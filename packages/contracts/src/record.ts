@@ -4,7 +4,7 @@
 
 import { addDays, addMonths, type IsoDate } from '../../core/src/index.ts';
 import { BLANK, groundInDocument, normalise, type GroundingResult, type ParsedDocument, type ParsedPage } from '../../documents/src/index.ts';
-import { feeLinesOf, feeValueOf, mergeFee, scheduleSteps } from './fee.ts';
+import { feeLinesOf, feeValueOf, isFeeLine, mergeFee, scheduleSteps } from './fee.ts';
 import { checkValue } from './value-check.ts';
 import type { ContractsPreset } from './preset.ts';
 import type {
@@ -140,6 +140,11 @@ function differsFrom(recorded: CandidateValue | undefined, c: RecordCandidate): 
  */
 function resolveField(key: FieldKey, label: string, candidates: RecordCandidate[], parsed: Record<string, ParsedDocument>, required: boolean, descriptive: boolean): Resolved {
   const r = resolveStanding(key, label, candidates, parsed, required, descriptive);
+  if (key === 'fee' && r.field.status === 'recorded') {
+    // Every amount line says whether VAT is in it, or that the document doesn't say. A line without it is flagged.
+    const noVat = candidates.filter((c) => !c.superseded && isSupported(c) && isFeeLine(c.value) && c.value.vat === undefined);
+    if (noVat.length) r.items.push({ id: 'unclear:fee:vat', kind: 'unclear', fieldKey: key, summary: `${label}: VAT status missing on ${noVat.length === 1 ? 'a line' : `${noVat.length} lines`} (excluding, including or not stated)`, sources: noVat.map(toSource) });
+  }
   if (descriptive || (r.field.status !== 'recorded' && r.field.status !== 'not_stated')) return r;
   const refused = candidates.filter((c) => !c.superseded && !isSupported(c) && c.value !== 'not_stated' && differsFrom(r.field.value, c));
   if (refused.length) {
@@ -404,6 +409,8 @@ function statusOf(items: ReviewItem[]): AgreementStatus {
 /** Recalculates what depends on the fields: derived end date, key dates, tags, status. */
 function finish(record: AgreementRecord, preset: ContractsPreset): AgreementRecord {
   deriveEndDate(record.fields);
+  // An end date worked out from start and term is not "not stated": drop that flag.
+  if (record.fields.endDate?.derived) record.reviewItems = record.reviewItems.filter((i) => !(i.id === 'unclear:endDate' && !i.decision));
   record.keyDates = keyDates(record.fields);
   const noticeTagged = record.keyDates.some((d) => d.tags.includes('notice'));
   record.tags = [...recordTags(record.fields), ...(noticeTagged ? ['notice'] : [])];
@@ -423,7 +430,7 @@ export function buildRecord(input: BuildInput): AgreementRecord {
     candidates.set(
       key,
       list.map((c) => {
-        const source = groundSource(c, parsed, preset, labels.get(key)?.descriptive === true);
+        const source = groundSource(c, parsed, preset, labels.get(key)?.descriptive === true || labels.get(key)?.repeatedQuoteOk === true);
         // Only a quote found in one place has wording to check the value against.
         const valueCheck = isGrounded(source) ? checkValue(key, c.value, matchedText(source, parsed)) : undefined;
         return { ...source, ...(valueCheck ? { valueCheck } : {}), value: c.value };
@@ -457,15 +464,41 @@ export function buildRecord(input: BuildInput): AgreementRecord {
     return { ...a, applied, grounding: source.grounding };
   });
 
+  // The kind of agreement decides which fields are required. A category that is missing, disputed or unknown counts as
+  // unclassified, and unclassified agreements need those fields too: a misread category cannot switch the checks off silently.
+  const categoryLabel = labels.get('agreementCategory')?.label ?? 'Category';
+  const resolvedCategory = candidates.has('agreementCategory') ? resolveField('agreementCategory', categoryLabel, candidates.get('agreementCategory')!, parsed, false, false) : undefined;
+  const category = resolvedCategory?.field.status === 'recorded' ? preset.categories.find((c) => c.id === resolvedCategory.field.value) : undefined;
+  const requiredKeys = new Set<string>((category ?? preset.uncategorised).required);
+
   const fields: AgreementRecord['fields'] = {};
   const fieldOrder = [...preset.fields.map((f) => f.key as FieldKey), ...[...candidates.keys()].filter((k) => !labels.has(k))];
   for (const key of fieldOrder) {
     const list = candidates.get(key);
     if (!list) continue;
     const spec = labels.get(key);
-    const { field, items } = resolveField(key, spec?.label ?? key, list, parsed, spec?.required ?? false, spec?.descriptive === true);
+    const { field, items } = key === 'agreementCategory' && resolvedCategory ? resolvedCategory : resolveField(key, spec?.label ?? key, list, parsed, (spec?.required ?? false) || requiredKeys.has(key), spec?.descriptive === true);
     fields[key] = field;
     reviewItems.push(...items);
+  }
+
+  // A category the checks are not applied to must be confirmed by a person.
+  if (category?.confirm && resolvedCategory) {
+    reviewItems.push({
+      id: 'confirm:agreementCategory',
+      kind: 'unclear',
+      fieldKey: 'agreementCategory',
+      summary: `${categoryLabel} recorded as "${category.label}": end date, renewal and notice are not required for it. A person must confirm the category`,
+      sources: resolvedCategory.field.candidates.filter((c) => isSupported(c) && !c.superseded).map(toSource),
+    });
+  }
+
+  // A required field the extractor gave no wording for at all is flagged too, never left out silently.
+  for (const key of requiredKeys) {
+    if (fields[key as FieldKey]) continue;
+    const label = labels.get(key)?.label ?? key;
+    fields[key as FieldKey] = { key: key as FieldKey, label, status: 'not_stated', value: 'not_stated', candidates: [] };
+    reviewItems.push({ id: `unclear:${key}`, kind: 'unclear', fieldKey: key as FieldKey, summary: `${label} not stated (no wording found for it)`, sources: [] });
   }
 
   // Fee steps (a rent that steps up by date) say the fee change: calculated by code, not chosen by the extractor.

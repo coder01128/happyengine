@@ -6,7 +6,7 @@ import type { ValueCheck } from './value-check.ts';
 
 export type FieldKey =
   | 'counterparty' | 'agreementType' | 'premises' | 'startDate' | 'endDate' | 'termMonths'
-  | 'renewal' | 'notice' | 'fee' | 'feeChange' | 'deposit' | 'scope';
+  | 'renewal' | 'notice' | 'fee' | 'feeChange' | 'deposit' | 'scope' | 'agreementCategory';
 
 export interface Notice { amount: number; unit: 'days' | 'months'; before?: 'expiry' | 'renewal' | 'end_of_initial_period' }
 export interface Renewal { kind: 'option' | 'automatic' | 'month_to_month' | 'none'; periodMonths?: number }
@@ -16,9 +16,15 @@ export type FeeChange =
   | { kind: 'unquantified' }
   | { kind: 'none' };
 /** One line of a fee: one amount for one charge. `what` names the charge ("rent", "parking bay"); `from` is the date the line starts, only when the wording gives it. */
-export interface FeeLine { cents: number; per: string; vat?: 'included' | 'excluded'; what?: string; from?: IsoDate }
+export interface FeeLine { cents: number; per: string; vat?: VatStatus; what?: string; from?: IsoDate }
+/** Whether an amount includes VAT: as the wording says, or 'not_stated' when the document doesn't say. Every amount line carries one. */
+export type VatStatus = 'included' | 'excluded' | 'not_stated';
+/** A charge stated in words, not as a rand amount ("1.5% of declared value", "at cost"). */
+export interface FeeText { text: string; what?: string }
+/** One entry of a merged fee: an amount line or a charge in words. */
+export type FeeEntry = FeeLine | FeeText;
 /** An extractor gives one line, or words. A record with several lines holds them as `{ lines }`, built by code and never by the extractor. */
-export type Fee = FeeLine | { text: string } | { lines: FeeLine[] };
+export type Fee = FeeLine | FeeText | { lines: FeeEntry[] };
 
 /** Text for names and descriptions; ISO date for dates; whole months for termMonths; cents for deposit. */
 export type FieldValue = string | number | Notice | Renewal | FeeChange | Fee;

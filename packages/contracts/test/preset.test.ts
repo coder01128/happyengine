@@ -12,7 +12,7 @@ describe('Contracts default preset', () => {
   it('lists the register fields in order', () =>
     expect(validateContractsPreset(fresh()).fields.map((f) => f.key)).toEqual([
       'counterparty', 'agreementType', 'premises', 'startDate', 'endDate', 'termMonths',
-      'renewal', 'notice', 'fee', 'feeChange', 'deposit', 'scope',
+      'renewal', 'notice', 'fee', 'feeChange', 'deposit', 'scope', 'agreementCategory',
     ]));
 
   it('has review options in alphabetical order', () =>
