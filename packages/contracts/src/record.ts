@@ -2,8 +2,8 @@
 // calculated. Pure code: no database, no network. The AI states what the documents say; this decides
 // what is flagged for review and calculates every date.
 
-import { addDays, addMonths, type IsoDate } from '../../core/src/index.ts';
-import { BLANK, groundInDocument, normalise, type GroundingResult, type ParsedDocument, type ParsedPage } from '../../documents/src/index.ts';
+import { addDays, addMonths, formatRand, type IsoDate } from '../../core/src/index.ts';
+import { BLANK, centsIn, groundInDocument, normalise, type GroundingResult, type ParsedDocument, type ParsedPage } from '../../documents/src/index.ts';
 import { feeLinesOf, feeValueOf, isFeeLine, mergeFee, scheduleSteps } from './fee.ts';
 import { checkValue } from './value-check.ts';
 import type { ContractsPreset } from './preset.ts';
@@ -392,6 +392,53 @@ function deriveFeeChange(fields: AgreementRecord['fields'], label: string | unde
   };
 }
 
+/** The paragraph or table (the run of text between blank lines) that the text at `start` is in. */
+function blockAround(text: string, start: number): string {
+  let pos = 0;
+  for (const block of text.split(/\n[ \t]*\n/)) {
+    if (start >= pos && start <= pos + block.length) return block;
+    pos += block.length + 2;
+  }
+  return text;
+}
+
+/**
+ * "Possibly incomplete": a text row of the section a fee was cited from holds a Rand amount, and no amount in that row
+ * is in any recorded fee line or the deposit. A row that already holds a recorded amount counts as covered, so a
+ * table's other columns (a rate per m²) are not flagged. Only a fee that stands is checked; a conflict or an unverified
+ * fee is flagged already. It says only that a person should look: it cannot tell what the amount is.
+ */
+function incompleteFee(fields: AgreementRecord['fields'], parsed: Record<string, ParsedDocument>, label: string): ReviewItem | undefined {
+  const fee = fields.fee;
+  if (!fee || fee.status !== 'recorded') return undefined;
+  const covered = new Set<number>();
+  for (const c of fee.candidates) for (const l of feeLinesOf(c.value)) covered.add(l.cents);
+  for (const c of fields.deposit?.candidates ?? []) if (typeof c.value === 'number') covered.add(c.value);
+  const standing = fee.candidates.filter((c) => isSupported(c) && !c.superseded);
+  const missing: number[] = [];
+  for (const c of standing) {
+    const parts = [{ page: c.page, start: c.grounding.start }, ...(c.grounding.more ?? []).map((m) => ({ page: m.page, start: m.start }))];
+    for (const part of parts) {
+      const text = findPage(parsed, c.file, part.page)?.text;
+      if (text === undefined) continue;
+      for (const row of blockAround(text, part.start ?? 0).split('\n')) {
+        const amounts = centsIn(row);
+        if (!amounts.length || amounts.some((x) => covered.has(x))) continue;
+        for (const x of amounts) if (!missing.includes(x)) missing.push(x);
+      }
+    }
+  }
+  if (!missing.length) return undefined;
+  const shown = missing.slice(0, 4).map(formatRand).join(', ') + (missing.length > 4 ? ` and ${missing.length - 4} more` : '');
+  return {
+    id: 'unclear:fee:incomplete',
+    kind: 'unclear',
+    fieldKey: 'fee',
+    summary: `${label}: possibly incomplete: ${shown} in the cited section ${missing.length === 1 ? 'is' : 'are'} not in any fee line`,
+    sources: standing.map(toSource),
+  };
+}
+
 function recordTags(fields: AgreementRecord['fields']): string[] {
   const tags: string[] = [];
   const renewal = fields.renewal?.status === 'recorded' ? (fields.renewal.value as Renewal) : undefined;
@@ -502,6 +549,8 @@ export function buildRecord(input: BuildInput): AgreementRecord {
   }
 
   // Fee steps (a rent that steps up by date) say the fee change: calculated by code, not chosen by the extractor.
+  const incomplete = incompleteFee(fields, parsed, labels.get('fee')?.label ?? 'Fee');
+  if (incomplete) reviewItems.push(incomplete);
   const stepped = deriveFeeChange(fields, labels.get('feeChange')?.label);
   if (stepped) {
     fields.feeChange = stepped;

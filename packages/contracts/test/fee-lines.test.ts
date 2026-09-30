@@ -28,9 +28,9 @@ const MAIN = doc(
   'SCHEDULE 2 RENT\n' +
     'Year 1 · 1 Feb 2024 – 31 Jan 2025 R27 435.00\n' +
     'Year 2 · 1 Feb 2025 – 31 Jan 2026 R29 630.00\n' +
-    'Year 3 · 1 Feb 2026 – 31 Jan 2027 R32 000.00\n' +
-    'The 2 additional bays are let at R450.00 per bay per month, excluding VAT.\n' +
-    'The Rent shall escalate on each anniversary by 8% of the Rent of the year before.\n' +
+    'Year 3 · 1 Feb 2026 – 31 Jan 2027 R32 000.00\n\n' +
+    'The 2 additional bays are let at R450.00 per bay per month, excluding VAT.\n\n' +
+    'The Rent shall escalate on each anniversary by 8% of the Rent of the year before.\n\n' +
     'The Tenant pays a levy of R1 200.00 per month.',
 );
 

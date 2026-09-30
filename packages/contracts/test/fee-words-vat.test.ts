@@ -23,13 +23,14 @@ const cand = (value: Candidate['value'], quote: string, clause?: string): Candid
 const build = (fields: Extraction['fields']) => buildRecord({ id: 't', ref: 'T', files: ['main.pdf'], parsed: { 'main.pdf': MAIN }, extraction: { fields, amendments: [] }, preset });
 
 const MAIN = doc(
-  'Year 3 · 1 Feb 2026 – 31 Jan 2027 R32 000.00\n' +
-    'The 2 additional bays are let at R450.00 per bay per month, excluding VAT.\n' +
-    'The Tenant pays a levy of R1 200.00 per month.',
+  'Year 3 · 1 Feb 2026 – 31 Jan 2027 R32 000.00\n\n' +
+    'The 2 additional bays are let at R450.00 per bay per month, excluding VAT.\n\n' +
+    'The Tenant pays a levy of R1 200.00 per month.\n\n' +
+    'Insurance levy: 1.5% of the declared value.',
 );
 const rent = cand({ cents: 3200000, per: 'month', vat: 'excluded', what: 'rent', from: '2026-02-01' }, 'Year 3 · 1 Feb 2026 – 31 Jan 2027 R32 000.00', 'Sch. 2');
 const parking = cand({ cents: 45000, per: 'month', vat: 'excluded', what: 'parking bay' }, 'The 2 additional bays are let at R450.00 per bay per month, excluding VAT', 'cl. 3');
-const levy = cand({ text: '1.5% of declared value', what: 'insurance levy' }, 'The Tenant pays a levy of R1 200.00 per month', 'cl. 5');
+const levy = cand({ text: '1.5% of declared value', what: 'insurance levy' }, 'Insurance levy: 1.5% of the declared value', 'cl. 6');
 
 describe('a charge in words beside the amount lines (D21)', () => {
   it('sits beside the lines with no conflict, and shows after the amounts', () => {

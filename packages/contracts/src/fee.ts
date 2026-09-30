@@ -8,6 +8,16 @@ import type { CandidateValue, Fee, FeeEntry, FeeLine, FeeText } from './types.ts
 
 const clean = (s: string | undefined) => (s ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
 
+// A bracket that only says which period a line is for: "(year 1)", "(months 13–24)", "(from 1 Feb 2025)", "(2025/26)".
+// "(office)" and "(warehouse)" say which charge it is, so they stay.
+const PERIOD_WORDS = /^(?:the\s+)?(?:years?|yrs?|months?|mths?|periods?|terms?|from|with effect|w\.?e\.?f\.?|until|till|to|ends?|starting|starts?|after|before|first|second|third|fourth|fifth|initial|renewal|final|last|current|new|previous|prior)\b/;
+const PERIOD_DATES = /\b(?:19|20)\d\d\b|\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\b|^\d+(?:st|nd|rd|th)?\s*(?:year|yr|month)/;
+const isPeriodQualifier = (inner: string) => PERIOD_WORDS.test(inner.trim().toLowerCase()) || PERIOD_DATES.test(inner.trim().toLowerCase());
+
+/** The charge a `what` names: lower case, single spaces, and without bracketed period qualifiers. */
+export const chargeName = (what: string | undefined) =>
+  clean((what ?? '').replace(/\(([^()]*)\)|\[([^[\]]*)\]/g, (m, a, b) => (isPeriodQualifier(a ?? b ?? '') ? ' ' : m)));
+
 /** A fee line: an amount with a unit. Words ({ text }) and merged records ({ lines }) are not lines. */
 export function isFeeLine(v: unknown): v is FeeLine {
   const o = v as Partial<FeeLine> | null;
@@ -62,13 +72,13 @@ export function mergeFee(values: CandidateValue[]): MergedFee {
   const amounts: MergedLine[] = [];
   const words: MergedLine[] = [];
   for (const [index, v] of values.entries()) {
-    if (isFeeLine(v) && clean(v.what)) amounts.push({ line: v, index });
-    else if (isFeeText(v) && clean(v.what)) words.push({ line: v, index });
+    if (isFeeLine(v) && chargeName(v.what)) amounts.push({ line: v, index });
+    else if (isFeeText(v) && chargeName(v.what)) words.push({ line: v, index });
     else return { kind: 'not_lines' };
   }
   const groups = new Map<string, MergedLine[]>();
   for (const l of amounts) {
-    const k = clean((l.line as FeeLine).what);
+    const k = chargeName((l.line as FeeLine).what);
     groups.set(k, [...(groups.get(k) ?? []), l]);
   }
 
@@ -94,7 +104,7 @@ export function mergeFee(values: CandidateValue[]): MergedFee {
 
   const kept: MergedLine[] = [];
   for (const w of words) {
-    const same = kept.find((k) => clean((k.line as FeeText).what) === clean((w.line as FeeText).what));
+    const same = kept.find((k) => chargeName((k.line as FeeText).what) === chargeName((w.line as FeeText).what));
     if (!same) kept.push(w);
     else if (!sameWording((same.line as FeeText).text, (w.line as FeeText).text)) return { kind: 'conflict' };
   }
@@ -111,7 +121,7 @@ export function currentFee(v: CandidateValue | undefined, asAt: IsoDate): Curren
   const groups = new Map<string, FeeLine[]>();
   const ordered: string[] = [];
   for (const [n, l] of feeLinesOf(v).entries()) {
-    const k = clean(l.what) || `#${n}`;
+    const k = chargeName(l.what) || `#${n}`;
     if (!groups.has(k)) ordered.push(k);
     groups.set(k, [...(groups.get(k) ?? []), l]);
   }
@@ -129,7 +139,7 @@ export function scheduleSteps(lines: MergedLine[]): { steps: number[]; indexes: 
   const byCharge = new Map<string, MergedLine[]>();
   for (const m of lines) {
     if (!isFeeLine(m.line) || !m.line.from) continue;
-    const k = clean(m.line.what);
+    const k = chargeName(m.line.what);
     byCharge.set(k, [...(byCharge.get(k) ?? []), m]);
   }
   const stepped = [...byCharge.values()].filter((g) => g.length >= 2);
