@@ -4,7 +4,7 @@
 
 import { useMemo, useState } from 'react';
 import { buildRecord, fieldViewerSources, validateContractsPreset, type AgreementRecord, type Extraction, type FieldKey } from '@happy/contracts';
-import { toFraction, type ParsedDocument, type ViewerSource } from '@happy/documents';
+import { FLAG_BADGE, toFraction, type ParsedDocument, type ViewerSource } from '@happy/documents';
 import presetJson from '../../../presets/contracts.default.json';
 import coordsUrl from '../../../eval/fixtures/coords.pdf?url';
 import coordsExpected from '../../../eval/fixtures/coords.expected.json';
@@ -105,6 +105,22 @@ const showValue = (v: unknown): string => {
   return Object.entries(v as Record<string, unknown>).map(([k, x]) => `${k}: ${Array.isArray(x) ? x.join(', ') : String(x)}`).join(' · ');
 };
 
+/** The flag a field's sources carry, if any (they all carry the same one). */
+const flagOfField = (sources: ViewerSource[]) => sources.find((s) => s.flag)?.flag;
+
+/** Fields with something for a person to look at, and why in a word or two. */
+function flaggedFields(record: AgreementRecord): { label: string; why: string }[] {
+  return preset.fields.flatMap((f) => {
+    const field = record.fields[f.key as FieldKey];
+    if (!field) return [];
+    const sources = fieldViewerSources(record, f.key as FieldKey);
+    const flag = flagOfField(sources);
+    if (flag) return [{ label: f.label, why: flag === 'blank' ? 'blank line' : flag }];
+    if (field.status === 'not_verified') return [{ label: f.label, why: 'source not verified' }];
+    return [];
+  });
+}
+
 const STATUS: Record<AgreementRecord['status'], { text: string; cls: string }> = {
   ready: { text: 'Ready', cls: 'b-ok' },
   flagged: { text: 'Flagged for review', cls: 'b-inc' },
@@ -168,6 +184,11 @@ export default function DevSourceViewer() {
             </h3>
             <Badge text={STATUS[record.status].text} cls={STATUS[record.status].cls} />
           </div>
+          {flaggedFields(record).length > 0 && (
+            <p className="small sec-gap" style={{ marginTop: 0, marginBottom: 12 }}>
+              <strong>Flagged for review:</strong> {flaggedFields(record).map((x) => `${x.label} (${x.why})`).join(', ')}
+            </p>
+          )}
           <dl style={{ margin: 0 }}>
             {preset.fields.map((f) => {
               const field = record.fields[f.key as FieldKey];
@@ -175,7 +196,14 @@ export default function DevSourceViewer() {
               const sources = fieldViewerSources(record, f.key as FieldKey, { scanned: () => ds.scanned });
               return (
                 <div className="dev-field" key={f.key}>
-                  <dt>{f.label}</dt>
+                  <dt>
+                    {f.label}
+                    {flagOfField(sources) && (
+                      <div>
+                        <Badge text={FLAG_BADGE[flagOfField(sources)!]} cls="b-inc" />
+                      </div>
+                    )}
+                  </dt>
                   <dd>
                     {field.candidates.map((c, i) => (
                       <span className="dev-cand" key={i}>
@@ -195,6 +223,7 @@ export default function DevSourceViewer() {
         <h3>What each chip should do</h3>
         <ul className="dev-legend sec-gap">
           <li>“p.2 · cl. 4.1” opens page 2 with that wording highlighted and its label above the box.</li>
+          <li>Green chips: source found, nothing to review. Amber chips that end “· conflict”, “· blank line” or “· unclear”: an open review item points at that wording, and the field row shows a badge such as “Conflict — review”.</li>
           <li>“Source not found — review”, “Source unclear — review”: opens the cited page with no highlight and a notice in words.</li>
           <li>“value not in wording — review”: the wording is highlighted, with a warning that the value isn’t in it.</li>
           <li>“Superseded by …” sits after an old clause’s chip; its viewer says the wording no longer applies.</li>

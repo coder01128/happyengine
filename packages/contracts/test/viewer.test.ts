@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { chipLabel, type ParsedDocument, type ParsedPage, type Word } from '../../documents/src/index.ts';
-import { buildRecord, fieldViewerSources, validateContractsPreset, type Candidate, type Extraction } from '../src/index.ts';
+import { applyDecisions, buildRecord, fieldViewerSources, validateContractsPreset, type Candidate, type Extraction } from '../src/index.ts';
 
 const preset = validateContractsPreset(JSON.parse(readFileSync(join(import.meta.dirname, '..', '..', '..', 'presets', 'contracts.default.json'), 'utf8')));
 
@@ -97,4 +97,38 @@ describe('fieldViewerSources', () => {
   });
 
   it('a field that was never extracted has no sources', () => expect(fieldViewerSources(build({}), 'fee')).toEqual([]));
+
+  describe('flags: where a review item points, the chip says so in words', () => {
+    const CONFLICT = doc('2.2 The monthly fee is R4 850.00 excluding VAT.\nSch. 1 The monthly fee is R5 850.00 excluding VAT.');
+    const conflicting = () =>
+      buildRecord({
+        id: 'a1', ref: 'A1', files: ['main.pdf'], parsed: { 'main.pdf': CONFLICT },
+        extraction: { amendments: [], fields: { fee: [cand({ cents: 485000, per: 'month' }, 'The monthly fee is R4 850.00 excluding VAT', 'cl. 2.2'), cand({ cents: 585000, per: 'month' }, 'The monthly fee is R5 850.00 excluding VAT', 'Sch. 1')] } },
+        preset,
+      });
+
+    it('both sources of a conflict are flagged, and their chips say "conflict"', () => {
+      const sources = fieldViewerSources(conflicting(), 'fee');
+      expect(sources.map((x) => x.flag)).toEqual(['conflict', 'conflict']);
+      expect(sources.map((x) => chipLabel(x))).toEqual(['p.1 · cl. 2.2 · conflict', 'p.1 · Sch. 1 · conflict']);
+    });
+
+    it('a field with no open review item has no flag', () => {
+      const [x] = fieldViewerSources(build({ startDate: [cand('2026-03-01', 'This agreement commences on 1 March 2026', 'cl. 2.1')] }), 'startDate');
+      expect(x!.flag).toBeUndefined();
+    });
+
+    it('once a reviewer decides the conflict, the flag is gone', () => {
+      const decided = applyDecisions(conflicting(), [{ itemId: 'conflict:fee', optionId: 'clarify', chosenValueIndex: 0 }], preset);
+      expect(fieldViewerSources(decided, 'fee').every((x) => x.flag === undefined)).toBe(true);
+    });
+
+    it('a blank line in the signed copy flags its source as "blank line"', () => {
+      const blank = doc('2.2 This agreement shall endure for a period of __________ months.');
+      const r = buildRecord({ id: 'a', ref: 'A', files: ['main.pdf'], parsed: { 'main.pdf': blank }, extraction: { amendments: [], fields: { termMonths: [cand('blank', 'This agreement shall endure for a period of __________ months', 'cl. 2.2')] } }, preset });
+      const [x] = fieldViewerSources(r, 'termMonths');
+      expect(x!.flag).toBe('blank');
+      expect(chipLabel(x!)).toBe('p.1 · cl. 2.2 · blank line');
+    });
+  });
 });

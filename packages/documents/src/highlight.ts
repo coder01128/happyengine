@@ -99,13 +99,22 @@ export interface ViewerSource {
   approximate?: boolean;
   /** "Add. 1 cl. 2": set when a later document replaced this clause. */
   supersededBy?: string;
+  /** Set when this source is one of the places a review item points at (and it hasn't been decided yet): the chip says so in words. */
+  flag?: SourceFlag;
 }
 
+/** conflict: the agreement says different things in different places. blank: a blank line in the signed copy. unclear: needs a person to read it. */
+export type SourceFlag = 'conflict' | 'blank' | 'unclear';
+
+const FLAG_CHIP: Record<SourceFlag, string> = { conflict: 'conflict', blank: 'blank line', unclear: 'unclear' };
+/** The words for a badge on a flagged field. */
+export const FLAG_BADGE: Record<SourceFlag, string> = { conflict: 'Conflict — review', blank: 'Blank in signed copy — review', unclear: 'Unclear — review' };
+
 /** The words on a source's chip. */
-export function chipLabel(s: Pick<ViewerSource, 'state' | 'page' | 'clause' | 'clauseChecked'>): string {
+export function chipLabel(s: Pick<ViewerSource, 'state' | 'page' | 'clause' | 'clauseChecked' | 'flag'>): string {
   switch (s.state) {
     case 'found':
-      return chipText(s);
+      return s.flag ? `${chipText(s)} · ${FLAG_CHIP[s.flag]}` : chipText(s);
     case 'value_mismatch':
       return `${chipText(s)} · value not in wording — review`;
     case 'ambiguous':

@@ -281,9 +281,10 @@ textarea::placeholder,input::placeholder{color:var(--muted);opacity:1}
 
 /* ---------- source chips (ported from happyai/demo-contracts.html) ---------- */
 :root{--src-hover:rgba(29,107,71,.18)}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--src-hover:rgba(255,194,61,.28)}}
-:root[data-theme="dark"]{--src-hover:rgba(255,194,61,.28)}
-.src{display:inline-flex;align-items:center;gap:4px;margin:0 0 0 6px;padding:1px 7px;border:0;border-radius:6px;background:var(--tint-soft);color:var(--tint-text);
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--src-hover:rgba(48,209,88,.3)}}
+:root[data-theme="dark"]{--src-hover:rgba(48,209,88,.3)}
+/* green = source found and nothing to review, in both themes; amber (.src-flag) = an open review item points here; red (.src-review) = not found */
+.src{display:inline-flex;align-items:center;gap:4px;margin:0 0 0 6px;padding:1px 7px;border:0;border-radius:6px;background:var(--ok-bg);color:var(--ok);
   font-size:13px;font-weight:600;line-height:1.45;letter-spacing:0;white-space:nowrap;vertical-align:1px;cursor:pointer;transition:background .15s}
 .src svg{width:11px;height:11px;flex:none}
 @media (hover:hover){.src:hover{background:var(--src-hover);text-decoration:underline;text-underline-offset:2px}}
@@ -333,3 +334,12 @@ textarea::placeholder,input::placeholder{color:var(--muted);opacity:1}
 .dev-cand:last-child{margin-bottom:0}
 @media (max-width:600px){.dev-field{grid-template-columns:1fr}}
 .vw-zoom{align-self:center;font-size:14px;font-weight:600;color:var(--muted)}
+
+/* flagged sources (an open conflict, blank or unclear item): amber, with the reason in words on the chip */
+.src-flag{background:var(--inc-bg);color:var(--inc);box-shadow:inset 0 0 0 1.5px var(--inc)}
+@media (hover:hover){.src-flag:hover{background:var(--inc-bg);text-decoration:underline;text-underline-offset:2px}}
+.vw-tab.flag{background:var(--inc-bg);color:var(--inc);box-shadow:inset 0 0 0 1.5px var(--inc)}
+.vw-tab.flag.on{border-color:var(--inc)}
+.vw-flag{font-weight:600;color:var(--inc);background:var(--inc-bg);padding:8px 12px;border-radius:10px}
+.dev-flag{margin-left:8px;vertical-align:1px}
+.vw-tab.flag.on{background:var(--inc);color:var(--card);box-shadow:none}

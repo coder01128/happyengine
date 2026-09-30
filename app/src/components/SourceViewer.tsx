@@ -5,7 +5,7 @@
 import * as pdfjs from 'pdfjs-dist';
 import workerUrl from 'pdfjs-dist/build/pdf.worker.mjs?url';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { chipLabel, firstRegion, highlightRegions, type Region, type ViewerSource } from '@happy/documents';
+import { chipLabel, chipText, FLAG_BADGE, firstRegion, highlightRegions, type Region, type ViewerSource } from '@happy/documents';
 import { Modal } from './Modal.tsx';
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
@@ -35,7 +35,7 @@ export function SourceChip({ source, onOpen }: { source: ViewerSource; onOpen: (
     <>
       <button
         type="button"
-        className={`src${source.state === 'found' ? '' : ' src-review'}`}
+        className={`src${source.state !== 'found' ? ' src-review' : source.flag ? ' src-flag' : ''}`}
         onClick={() => onOpen(source)}
         aria-label={`${label}, source for ${source.label}`}
       >
@@ -244,8 +244,11 @@ export function SourceViewer({ sources, documents, initialId, onClose }: { sourc
   };
 
   const located = source.state === 'found' || source.state === 'value_mismatch';
+  const others = source.flag ? sources.filter((s) => s.id !== source.id && s.flag === source.flag) : [];
   const status =
-    source.state === 'found' ? (
+    source.state === 'found' && source.flag ? (
+      <span className="badge b-inc">{FLAG_BADGE[source.flag]}</span>
+    ) : source.state === 'found' ? (
       <span className="badge b-ok">Source found</span>
     ) : source.state === 'value_mismatch' ? (
       <span className="badge b-inc">Flagged for review</span>
@@ -265,7 +268,7 @@ export function SourceViewer({ sources, documents, initialId, onClose }: { sourc
               type="button"
               role="tab"
               aria-selected={s.id === source.id}
-              className={`vw-tab${s.id === source.id ? ' on' : ''}`}
+              className={`vw-tab${s.id === source.id ? ' on' : ''}${s.flag ? ' flag' : ''}`}
               onClick={() => setActiveId(s.id)}
               onKeyDown={(e) => {
                 const i = sources.indexOf(s);
@@ -298,6 +301,14 @@ export function SourceViewer({ sources, documents, initialId, onClose }: { sourc
           <span className="vw-status">{status}</span>
         </p>
         <blockquote className="vw-quote">{source.quote}</blockquote>
+        {source.flag === 'conflict' && (
+          <p className="vw-notice vw-flag" role="status">
+            Conflict: the agreement says different things in different places
+            {others.length ? ` (this one and ${others.map((o) => chipText(o)).join(', ')})` : ''}. It has been flagged for review; a reviewer has to choose which applies. Use the tabs to compare.
+          </p>
+        )}
+        {source.flag === 'blank' && <p className="vw-notice vw-flag">This part of the signed copy is left blank. It has been flagged for review.</p>}
+        {source.flag === 'unclear' && <p className="vw-notice vw-flag">This wording could not be resolved on its own. It has been flagged for review.</p>}
         {source.supersededBy && <p className="vw-notice">Superseded by {source.supersededBy}. This wording no longer applies.</p>}
         {source.claimedPage !== undefined && located && <p className="vw-notice">The wording was found on page {source.page}, not page {source.claimedPage} as first cited.</p>}
         {!located && (
